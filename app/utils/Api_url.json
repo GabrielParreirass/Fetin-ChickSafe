@@ -1,0 +1,8 @@
+{
+  "apiUrl" : "ws://192.168.66.11:9001",
+  "options" : {
+    "clientId": "chicksafe_",
+    "username": "csilab",
+    "password": "WhoAmI#2024"
+  }
+}
