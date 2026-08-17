@@ -1,105 +1,19 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
   StyleSheet,
   StatusBar,
   TouchableOpacity,
-  Modal,
-  FlatList,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import mqtt, { MqttClient } from "mqtt";
-import { useRef, useEffect } from "react";
-import apiUrl from "@/app/utils/Api_url.json";
-import { createMqttOptions } from "@/app/utils/MqttOptions";
+import { Href, router } from "expo-router";
+import { GALPOES, Galpao } from "@/app/utils/galpoes";
 
 export default function HomeLogadaScreen() {
-  const ambientes = [
-    {
-      id: 1,
-      nome: "Galpão Santa Rita",
-      energia: "USB", 
-      alarme: "Ativado",
-    },
-    {
-      id: 2,
-      nome: "Galpão Inatel",
-      energia: "Bateria", 
-      alarme: "Desativado",
-    },
-  ];
-
-  const client = useRef<MqttClient | null>(null);
-  const API_URL = apiUrl.apiUrl;
-  const options = createMqttOptions();
-  const [ambienteSelecionado, setAmbienteSelecionado] = useState(ambientes[0]);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [vbat, setVbat] = useState(null);
-
-  const alternarEnergia = () => {
-    const novoStatus =
-      ambienteSelecionado.energia === "USB"
-        ? "Bateria"
-        : "USB";
-    setAmbienteSelecionado({ ...ambienteSelecionado, energia: novoStatus });
+  const abrirGalpao = (galpao: Galpao) => {
+    router.push(`/(private)/galpao/${galpao.id}/page` as Href);
   };
-
-  const alternarAlarme = () => {
-    const novoStatus =
-      ambienteSelecionado.alarme === "Ativado" ? "Desativado" : "Ativado";
-    setAmbienteSelecionado({ ...ambienteSelecionado, alarme: novoStatus });
-  };
-
-  const getIndicadorCor = () => {
-    if (
-      ambienteSelecionado.energia === "USB" &&
-      ambienteSelecionado.alarme === "Ativado"
-    ) {
-      return "green";
-    } else {
-      return "#F44336"; 
-    }
-  };
-
-  const selecionarAmbiente = (ambiente: any) => {
-    setAmbienteSelecionado(ambiente);
-    setModalVisible(false);
-  };
-
-  useEffect(() => {
-    client.current = mqtt.connect(API_URL, options);
-    client.current.on("connect", () => {
-      console.log("✅ Conectado ao broker MQTT");
-
-      client.current?.subscribe("Chicksafe", (err) => {
-        if (!err) {
-          console.log("📡 Inscrito no tópico: Chicksafe");
-        }
-      });
-    });
-
-    client.current.on("message", (topic, message) => {
-      console.log(`📨 Mensagem no tópico ${topic}: ${message.toString()}`);
-
-      if (topic === "Chicksafe") {
-        try {
-          const obj = JSON.parse(message.toString());
-          
-          const fonteDeEnergia = obj.fonte; 
-          const voltagemBateria = obj.vbat_mv;
-
-          setVbat(voltagemBateria);
-          setAmbienteSelecionado((prev) => ({
-            ...prev,
-            energia: fonteDeEnergia === "USB" ? "USB" : "Bateria",
-          }));
-        } catch (error) {
-          console.error("Erro ao fazer parse do JSON recebido:", error);
-        }
-      }
-    });
-  }, []);
 
   return (
     <View style={styles.container}>
@@ -107,81 +21,30 @@ export default function HomeLogadaScreen() {
 
       <View style={styles.header}>
         <Text style={styles.userName}>Olá, Gabriel!</Text>
-        <View
-          style={[
-            styles.statusIndicator,
-            { backgroundColor: getIndicadorCor() },
-          ]}
-        />
+        <TouchableOpacity
+          onPress={() => router.push("/(private)/historico/page" as Href)}
+          style={styles.historicoHeaderButton}
+          accessibilityLabel="Abrir histórico"
+        >
+          <MaterialIcons name="history" size={26} color="#333" />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.body}>
-        <TouchableOpacity
-          onPress={() => setModalVisible(true)}
-          style={styles.dropdown}
-        >
-          <View style={styles.dropdownText}>
-            <Text style={styles.dropdownText}>{ambienteSelecionado.nome}</Text>
-            <Text>
-              <MaterialIcons name="arrow-drop-down" size={24} color="black" />
-            </Text>
-          </View>
-        </TouchableOpacity>
+        <Text style={styles.sectionTitle}>Galpões disponíveis</Text>
 
-        <Modal visible={modalVisible} transparent animationType="fade">
-          <TouchableOpacity
-            style={styles.modalContainer}
-            onPress={() => setModalVisible(false)}
-            activeOpacity={1}
-          >
-            <View style={styles.modalContent}>
-              <FlatList
-                data={ambientes}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    onPress={() => selecionarAmbiente(item)}
-                    style={styles.modalItem}
-                  >
-                    <Text style={styles.modalItemText}>{item.nome}</Text>
-                  </TouchableOpacity>
-                )}
-              />
-            </View>
-          </TouchableOpacity>
-        </Modal>
-
-        <TouchableOpacity
-          style={[
-            styles.card,
-            {
-              backgroundColor:
-                ambienteSelecionado.energia === "USB"
-                  ? "#4CAF50"
-                  : "#F44336",
-            },
-          ]}
-          onPress={alternarEnergia}
-        >
-          <Text style={styles.cardTitle}>Energia</Text>
-          <Text style={styles.cardStatus}>{ambienteSelecionado.energia}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.card,
-            {
-              backgroundColor:
-                ambienteSelecionado.alarme === "Ativado"
-                  ? "#4CAF50"
-                  : "#F44336",
-            },
-          ]}
-          onPress={alternarAlarme}
-        >
-          <Text style={styles.cardTitle}>Alarme</Text>
-          <Text style={styles.cardStatus}>{ambienteSelecionado.alarme}</Text>
-        </TouchableOpacity>
+        <View style={styles.galpaoRow}>
+          {GALPOES.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={styles.galpaoCard}
+              onPress={() => abrirGalpao(item)}
+            >
+              <MaterialIcons name="home" size={28} color="#333" />
+              <Text style={styles.galpaoNome}>{item.nome}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -206,10 +69,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
   },
-  statusIndicator: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  historicoHeaderButton: {
+    padding: 4,
   },
   body: {
     flex: 1,
@@ -218,55 +79,32 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 30,
     padding: 20,
   },
-  dropdown: {
-    backgroundColor: "#f1f1f1",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 20,
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  dropdownText: {
+  sectionTitle: {
     fontSize: 18,
+    fontWeight: "600",
     color: "#333",
-    display: "flex",
+    marginBottom: 16,
+  },
+  galpaoRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+    gap: 16,
   },
-  card: {
+  galpaoCard: {
+    backgroundColor: "#f1f1f1",
     borderRadius: 15,
-    padding: 20,
-    marginBottom: 20,
+    width: 130,
+    height: 130,
+    padding: 12,
     alignItems: "center",
-  },
-  cardTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 10,
-  },
-  cardStatus: {
-    fontSize: 20,
-    color: "#fff",
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.3)",
     justifyContent: "center",
-    padding: 20,
   },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
-  },
-  modalItem: {
-    paddingVertical: 15,
-  },
-  modalItemText: {
-    fontSize: 20,
+  galpaoNome: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#333",
+    marginTop: 8,
+    textAlign: "center",
   },
 });

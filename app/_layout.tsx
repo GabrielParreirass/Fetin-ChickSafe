@@ -19,6 +19,8 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)/login/page" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)/cadastro/page" options={{ headerShown: false }} />
         <Stack.Screen name="(private)/home/page" options={{ headerShown: false }} />
+        <Stack.Screen name="(private)/galpao/[id]/page" options={{ headerShown: false }} />
+        <Stack.Screen name="(private)/historico/page" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />
