@@ -3,6 +3,13 @@ import {
   buscarUltimaLeitura,
   listarGalpoesDoUsuario,
 } from "@/lib/database";
+import {
+  correnteOk,
+  formatarCorrente,
+  formatarTensao,
+  rotuloEnergia,
+  tensaoOk,
+} from "@/lib/status";
 import { supabase } from "@/lib/supabase";
 import type { Galpao, Leitura } from "@/lib/types";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -53,20 +60,20 @@ function cardsDaLeitura(leitura: Leitura | null): StatusCard[] {
     {
       campo: "energia",
       titulo: "Energia",
-      valor: leitura.energia,
-      ok: leitura.energia === "USB",
+      valor: rotuloEnergia(leitura.energia),
+      ok: rotuloEnergia(leitura.energia) === "Fonte",
     },
     {
       campo: "tensao",
       titulo: "Tensão da Bateria",
-      valor: `${tensao.toFixed(1)} V`,
-      ok: tensao >= 12,
+      valor: formatarTensao(tensao),
+      ok: tensaoOk(tensao),
     },
     {
       campo: "corrente",
       titulo: "Corrente do ventilador",
-      valor: `${corrente.toFixed(1)} A`,
-      ok: corrente > 0.5,
+      valor: formatarCorrente(corrente),
+      ok: correnteOk(corrente),
     },
   ];
 }

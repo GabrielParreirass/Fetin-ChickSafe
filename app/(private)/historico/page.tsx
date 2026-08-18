@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/auth";
-import { listarGalpoesDoUsuario, listarLeituras } from "@/lib/database";
-import type { Leitura } from "@/lib/types";
 import { formatarDataHora } from "@/app/utils/historico";
+import { listarGalpoesDoUsuario, listarLeituras } from "@/lib/database";
+import { extrairMudancas, type MudancaLeitura } from "@/lib/historico";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
@@ -19,7 +19,7 @@ import {
 export default function HistoricoScreen() {
   const { galpaoId } = useLocalSearchParams<{ galpaoId?: string }>();
   const { user } = useAuth();
-  const [itens, setItens] = useState<Leitura[]>([]);
+  const [itens, setItens] = useState<MudancaLeitura[]>([]);
   const [carregando, setCarregando] = useState(true);
 
   useFocusEffect(
@@ -33,27 +33,21 @@ export default function HistoricoScreen() {
 
         try {
           setCarregando(true);
-          let filtro = galpaoId;
+          const galpoes = await listarGalpoesDoUsuario(user.id);
+          const nomesPorGalpao = Object.fromEntries(
+            galpoes.map((item) => [item.id, item.nome])
+          );
 
-          if (!filtro) {
-            const galpoes = await listarGalpoesDoUsuario(user.id);
-            const ids = galpoes.map((item) => item.id);
-            const todas = (
-              await Promise.all(ids.map((id) => listarLeituras(id)))
-            ).flat();
-            todas.sort(
-              (a, b) =>
-                new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime()
-            );
-            if (ativo) {
-              setItens(todas.slice(0, 50));
-            }
-            return;
-          }
+          const ids = galpaoId
+            ? [galpaoId]
+            : galpoes.map((item) => item.id);
 
-          const lista = await listarLeituras(filtro);
+          const leituras = (
+            await Promise.all(ids.map((id) => listarLeituras(id)))
+          ).flat();
+
           if (ativo) {
-            setItens(lista);
+            setItens(extrairMudancas(leituras, nomesPorGalpao));
           }
         } catch (error) {
           const mensagem =
@@ -94,24 +88,25 @@ export default function HistoricoScreen() {
           <ActivityIndicator color="#333" style={styles.loader} />
         ) : itens.length === 0 ? (
           <Text style={styles.emptyText}>
-            Nenhuma leitura registrada ainda. Quando o ESP32 publicar, os
-            valores aparecem aqui.
+            Nenhuma mudança registrada ainda. Ligue o simulador ou aguarde o
+            ESP32 publicar leituras diferentes.
           </Text>
         ) : (
           <FlatList
             data={itens}
-            keyExtractor={(item) => item.id.toString()}
+            keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <View style={styles.item}>
-                <Text style={styles.itemCampo}>{item.energia}</Text>
+                <Text style={styles.itemCampo}>{item.campo}</Text>
+                {item.galpaoNome ? (
+                  <Text style={styles.itemGalpao}>{item.galpaoNome}</Text>
+                ) : null}
                 <Text style={styles.itemLinha}>
-                  Tensão: {Number(item.tensao).toFixed(1)} V
+                  Anterior: {item.estadoAnterior}
                 </Text>
-                <Text style={styles.itemLinha}>
-                  Corrente: {Number(item.corrente).toFixed(1)} A
-                </Text>
+                <Text style={styles.itemLinha}>Novo: {item.novoEstado}</Text>
                 <Text style={styles.itemData}>
-                  {formatarDataHora(new Date(item.criado_em))}
+                  {formatarDataHora(item.dataHora)}
                 </Text>
               </View>
             )}
@@ -171,6 +166,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#333",
+    marginBottom: 4,
+  },
+  itemGalpao: {
+    fontSize: 14,
+    color: "#555",
     marginBottom: 8,
   },
   itemLinha: {

@@ -138,7 +138,7 @@ export async function buscarUltimaLeitura(
 
 export async function listarLeituras(
   galpaoId?: string,
-  limite = 50
+  limite = 200
 ): Promise<Leitura[]> {
   let query = supabase
     .from("leituras")

@@ -1,4 +1,5 @@
 import { AuthProvider, useAuth } from "@/contexts/auth";
+import { SimuladorProvider } from "@/contexts/simulador";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, type ReactNode } from "react";
@@ -50,7 +51,8 @@ function AuthGate({ children }: { children: ReactNode }) {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <AuthGate>
+      <SimuladorProvider>
+        <AuthGate>
         <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen
@@ -75,7 +77,8 @@ export default function RootLayout() {
           />
           <Stack.Screen name="+not-found" />
         </Stack>
-      </AuthGate>
+        </AuthGate>
+      </SimuladorProvider>
       <StatusBar style="auto" />
     </AuthProvider>
   );

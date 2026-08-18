@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/auth";
+import { useSimulador } from "@/contexts/simulador";
 import {
   criarGalpao,
   entrarGalpaoPorCodigo,
@@ -23,6 +24,7 @@ import {
 
 export default function HomeLogadaScreen() {
   const { usuario, user, signOut } = useAuth();
+  const { ativo, ultima, iniciar, parar } = useSimulador();
   const [galpoes, setGalpoes] = useState<Galpao[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [modal, setModal] = useState<"entrar" | "criar" | null>(null);
@@ -168,6 +170,22 @@ export default function HomeLogadaScreen() {
 
         <View style={styles.footerActions}>
           <TouchableOpacity
+            style={ativo ? styles.primaryButton : styles.secondaryButton}
+            onPress={() => (ativo ? parar() : void iniciar())}
+          >
+            <Text
+              style={ativo ? styles.primaryButtonText : styles.secondaryButtonText}
+            >
+              {ativo ? "Parar simulador ESP32" : "Simular ESP32 (1 min)"}
+            </Text>
+          </TouchableOpacity>
+          {ativo && ultima ? (
+            <Text style={styles.simuladorStatus}>
+              Último envio: {ultima.energia} · {Number(ultima.tensao).toFixed(1)} V ·{" "}
+              {Math.round(Number(ultima.corrente))} mA
+            </Text>
+          ) : null}
+          <TouchableOpacity
             style={styles.secondaryButton}
             onPress={() => setModal("entrar")}
           >
@@ -300,6 +318,11 @@ const styles = StyleSheet.create({
   footerActions: {
     gap: 10,
     paddingTop: 8,
+  },
+  simuladorStatus: {
+    fontSize: 13,
+    color: "#555",
+    textAlign: "center",
   },
   primaryButton: {
     backgroundColor: "#333",

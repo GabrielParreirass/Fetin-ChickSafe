@@ -1,4 +1,4 @@
-export type Energia = "USB" | "Bateria";
+export type Energia = "Fonte" | "Bateria" | "USB";
 
 export type Usuario = {
   id: string;
