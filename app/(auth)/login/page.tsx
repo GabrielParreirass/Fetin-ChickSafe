@@ -1,19 +1,38 @@
-import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
+import { useAuth } from "@/contexts/auth";
+import { router } from "expo-router";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-export default function LoginScreen({ navigation }:any) {
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
+export default function LoginScreen() {
+  const { signIn } = useAuth();
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
-  const handleLogin = () => {
-    if(email != "teste@gmail.com" || senha != "1234"){
-      alert("Email ou senha incorretos")
+  const handleLogin = async () => {
+    if (!email.trim() || !senha) {
+      Alert.alert("Login", "Preencha e-mail e senha.");
+      return;
     }
-    else{
-      router.navigate("/(private)/home/page")
-      console.log('Email:', email);
-      console.log('Senha:', senha);
+
+    try {
+      setEnviando(true);
+      await signIn(email, senha);
+    } catch (error) {
+      const mensagem =
+        error instanceof Error ? error.message : "Não foi possível entrar.";
+      Alert.alert("Email ou senha incorretos", mensagem);
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -29,6 +48,7 @@ export default function LoginScreen({ navigation }:any) {
         placeholderTextColor="#555"
         keyboardType="email-address"
         autoCapitalize="none"
+        autoComplete="email"
         value={email}
         onChangeText={setEmail}
       />
@@ -42,11 +62,26 @@ export default function LoginScreen({ navigation }:any) {
         onChangeText={setSenha}
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Entrar</Text>
+      <TouchableOpacity
+        style={[styles.button, enviando && styles.buttonDisabled]}
+        onPress={handleLogin}
+        disabled={enviando}
+      >
+        {enviando ? (
+          <ActivityIndicator color="#f9ca0a" />
+        ) : (
+          <Text style={styles.buttonText}>Entrar</Text>
+        )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate('RecuperarSenha')}>
+      <TouchableOpacity
+        onPress={() =>
+          Alert.alert(
+            "Recuperar senha",
+            "Ainda não está disponível. Peça a um colega com acesso ao painel do Supabase."
+          )
+        }
+      >
         <Text style={styles.linkText}>Esqueci minha senha</Text>
       </TouchableOpacity>
 
@@ -60,52 +95,54 @@ export default function LoginScreen({ navigation }:any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9ca0a',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20
+    backgroundColor: "#f9ca0a",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 40
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 40,
   },
   input: {
-    width: '100%',
+    width: "100%",
     height: 55,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 10,
     paddingHorizontal: 15,
     fontSize: 16,
     marginBottom: 20,
-    color: '#333'
+    color: "#333",
   },
   button: {
-    backgroundColor: '#333',
+    backgroundColor: "#333",
     paddingVertical: 15,
     paddingHorizontal: 40,
     borderRadius: 10,
     marginBottom: 20,
-    width: '100%',
-    alignItems: 'center'
+    width: "100%",
+    alignItems: "center",
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   buttonText: {
-    color: '#f9ca0a',
+    color: "#f9ca0a",
     fontSize: 18,
-    fontWeight: '600'
+    fontWeight: "600",
   },
   linkText: {
-    color: '#333',
+    color: "#333",
     marginTop: 10,
     fontSize: 16,
-    textDecorationLine: 'underline'
+    textDecorationLine: "underline",
   },
   createAccountText: {
-    color: '#333',
+    color: "#333",
     marginTop: 25,
     fontSize: 16,
-    fontWeight: '600'
-  }
+    fontWeight: "600",
+  },
 });
-    

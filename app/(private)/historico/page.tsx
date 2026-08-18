@@ -1,29 +1,77 @@
-import React, { useCallback, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  StatusBar,
-  TouchableOpacity,
-  FlatList,
-} from "react-native";
+import { useAuth } from "@/contexts/auth";
+import { listarGalpoesDoUsuario, listarLeituras } from "@/lib/database";
+import type { Leitura } from "@/lib/types";
+import { formatarDataHora } from "@/app/utils/historico";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useState } from "react";
 import {
-  formatarDataHora,
-  getHistorico,
-  HistoricoItem,
-} from "@/app/utils/historico";
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function HistoricoScreen() {
   const { galpaoId } = useLocalSearchParams<{ galpaoId?: string }>();
-  const [itens, setItens] = useState<HistoricoItem[]>([]);
+  const { user } = useAuth();
+  const [itens, setItens] = useState<Leitura[]>([]);
+  const [carregando, setCarregando] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
-      const id = galpaoId ? Number(galpaoId) : undefined;
-      setItens(getHistorico(Number.isNaN(id) ? undefined : id));
-    }, [galpaoId])
+      let ativo = true;
+
+      (async () => {
+        if (!user) {
+          return;
+        }
+
+        try {
+          setCarregando(true);
+          let filtro = galpaoId;
+
+          if (!filtro) {
+            const galpoes = await listarGalpoesDoUsuario(user.id);
+            const ids = galpoes.map((item) => item.id);
+            const todas = (
+              await Promise.all(ids.map((id) => listarLeituras(id)))
+            ).flat();
+            todas.sort(
+              (a, b) =>
+                new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime()
+            );
+            if (ativo) {
+              setItens(todas.slice(0, 50));
+            }
+            return;
+          }
+
+          const lista = await listarLeituras(filtro);
+          if (ativo) {
+            setItens(lista);
+          }
+        } catch (error) {
+          const mensagem =
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar o histórico.";
+          Alert.alert("Histórico", mensagem);
+        } finally {
+          if (ativo) {
+            setCarregando(false);
+          }
+        }
+      })();
+
+      return () => {
+        ativo = false;
+      };
+    }, [galpaoId, user])
   );
 
   return (
@@ -42,25 +90,28 @@ export default function HistoricoScreen() {
       </View>
 
       <View style={styles.body}>
-        {itens.length === 0 ? (
+        {carregando ? (
+          <ActivityIndicator color="#333" style={styles.loader} />
+        ) : itens.length === 0 ? (
           <Text style={styles.emptyText}>
-            Nenhuma alteração registrada ainda. Toque nos cards de status para
-            gerar um histórico.
+            Nenhuma leitura registrada ainda. Quando o ESP32 publicar, os
+            valores aparecem aqui.
           </Text>
         ) : (
           <FlatList
             data={itens}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item.id.toString()}
             renderItem={({ item }) => (
               <View style={styles.item}>
-                <Text style={styles.itemCampo}>{item.campo}</Text>
-                <Text style={styles.itemGalpao}>{item.galpaoNome}</Text>
+                <Text style={styles.itemCampo}>{item.energia}</Text>
                 <Text style={styles.itemLinha}>
-                  Anterior: {item.estadoAnterior}
+                  Tensão: {Number(item.tensao).toFixed(1)} V
                 </Text>
-                <Text style={styles.itemLinha}>Novo: {item.novoEstado}</Text>
+                <Text style={styles.itemLinha}>
+                  Corrente: {Number(item.corrente).toFixed(1)} A
+                </Text>
                 <Text style={styles.itemData}>
-                  {formatarDataHora(item.dataHora)}
+                  {formatarDataHora(new Date(item.criado_em))}
                 </Text>
               </View>
             )}
@@ -100,6 +151,9 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 30,
     padding: 20,
   },
+  loader: {
+    marginTop: 24,
+  },
   emptyText: {
     fontSize: 16,
     color: "#555",
@@ -117,11 +171,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#333",
-    marginBottom: 4,
-  },
-  itemGalpao: {
-    fontSize: 14,
-    color: "#555",
     marginBottom: 8,
   },
   itemLinha: {
