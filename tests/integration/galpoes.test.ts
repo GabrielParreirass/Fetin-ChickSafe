@@ -6,9 +6,12 @@ jest.mock("@/lib/supabase", () => ({
 }));
 
 import {
+  apagarGalpao,
+  atualizarGalpao,
   criarGalpao,
   entrarGalpaoPorCodigo,
   listarGalpoesDoUsuario,
+  removerAcessoDoGalpao,
 } from "@/lib/database";
 import type { Galpao } from "@/lib/types";
 import {
@@ -21,6 +24,17 @@ const GALPAO: Galpao = {
   id: "galpao-1",
   nome: "Galpão Norte",
   codigo: "ABC123",
+  limiarTensao: 3,
+  limiarCorrente: 50,
+  papel: "dono",
+};
+
+const GALPAO_ROW = {
+  id: "galpao-1",
+  nome: "Galpão Norte",
+  codigo: "ABC123",
+  limiar_tensao: 3,
+  limiar_corrente: 50,
 };
 
 describe("listarGalpoesDoUsuario", () => {
@@ -31,8 +45,8 @@ describe("listarGalpoesDoUsuario", () => {
   it("desembrulha galpão como objeto e ignora relações nulas", async () => {
     const consulta = createMockQuery({
       data: [
-        { galpao_id: "galpao-1", galpoes: GALPAO },
-        { galpao_id: "galpao-2", galpoes: null },
+        { galpao_id: "galpao-1", papel: "dono", galpoes: GALPAO_ROW },
+        { galpao_id: "galpao-2", papel: "operador", galpoes: null },
       ],
       error: null,
     });
@@ -46,7 +60,7 @@ describe("listarGalpoesDoUsuario", () => {
   it("usa o primeiro item quando o join vem como array", async () => {
     supabaseMocks().from.mockReturnValue(
       createMockQuery({
-        data: [{ galpao_id: "galpao-1", galpoes: [GALPAO] }],
+        data: [{ galpao_id: "galpao-1", papel: "dono", galpoes: [GALPAO_ROW] }],
         error: null,
       })
     );
@@ -103,7 +117,7 @@ describe("criarGalpao", () => {
   });
 
   it("envia o nome sem espaços extras", async () => {
-    supabaseMocks().rpc.mockResolvedValue({ data: GALPAO, error: null });
+    supabaseMocks().rpc.mockResolvedValue({ data: GALPAO_ROW, error: null });
 
     await expect(criarGalpao("  Galpão Norte  ")).resolves.toEqual(GALPAO);
     expect(supabaseMocks().rpc).toHaveBeenCalledWith("criar_galpao", {
@@ -116,5 +130,80 @@ describe("criarGalpao", () => {
     supabaseMocks().rpc.mockResolvedValue({ data: null, error: erro });
 
     await expect(criarGalpao("Norte")).rejects.toEqual(erro);
+  });
+});
+
+describe("atualizarGalpao", () => {
+  beforeEach(() => {
+    resetSupabaseMocks();
+  });
+
+  it("envia nome e limiares para a RPC", async () => {
+    supabaseMocks().rpc.mockResolvedValue({
+      data: { ...GALPAO_ROW, nome: "Norte 2", limiar_tensao: 4, limiar_corrente: 80 },
+      error: null,
+    });
+
+    await expect(
+      atualizarGalpao({
+        galpaoId: "galpao-1",
+        nome: "  Norte 2  ",
+        limiarTensao: 4,
+        limiarCorrente: 80,
+      })
+    ).resolves.toEqual({
+      ...GALPAO,
+      nome: "Norte 2",
+      limiarTensao: 4,
+      limiarCorrente: 80,
+    });
+    expect(supabaseMocks().rpc).toHaveBeenCalledWith("atualizar_galpao", {
+      p_galpao_id: "galpao-1",
+      p_nome: "Norte 2",
+      p_limiar_tensao: 4,
+      p_limiar_corrente: 80,
+    });
+  });
+});
+
+describe("removerAcessoDoGalpao", () => {
+  beforeEach(() => {
+    resetSupabaseMocks();
+  });
+
+  it("chama a RPC com galpão e usuário", async () => {
+    supabaseMocks().rpc.mockResolvedValue({ data: null, error: null });
+
+    await expect(
+      removerAcessoDoGalpao("galpao-1", "user-2")
+    ).resolves.toBeUndefined();
+    expect(supabaseMocks().rpc).toHaveBeenCalledWith("remover_acesso_galpao", {
+      p_galpao_id: "galpao-1",
+      p_usuario_id: "user-2",
+    });
+  });
+
+  it("propaga erro do dono", async () => {
+    const erro = { message: "Não é possível remover o dono do galpão" };
+    supabaseMocks().rpc.mockResolvedValue({ data: null, error: erro });
+
+    await expect(removerAcessoDoGalpao("galpao-1", "user-1")).rejects.toEqual(
+      erro
+    );
+  });
+});
+
+describe("apagarGalpao", () => {
+  beforeEach(() => {
+    resetSupabaseMocks();
+  });
+
+  it("chama a RPC de exclusão", async () => {
+    supabaseMocks().rpc.mockResolvedValue({ data: null, error: null });
+
+    await expect(apagarGalpao("galpao-1")).resolves.toBeUndefined();
+    expect(supabaseMocks().rpc).toHaveBeenCalledWith("apagar_galpao", {
+      p_galpao_id: "galpao-1",
+    });
   });
 });

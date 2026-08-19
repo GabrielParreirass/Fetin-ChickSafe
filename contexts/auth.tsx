@@ -9,7 +9,11 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { entrarGalpaoPorCodigo, garantirPerfil } from "@/lib/database";
+import {
+  atualizarPerfil,
+  entrarGalpaoPorCodigo,
+  garantirPerfil,
+} from "@/lib/database";
 import type { Usuario } from "@/lib/types";
 
 type SignUpInput = {
@@ -30,6 +34,11 @@ type AuthContextValue = {
   signUp: (input: SignUpInput) => Promise<{ needsConfirmation: boolean }>;
   signOut: () => Promise<void>;
   recarregarUsuario: () => Promise<void>;
+  atualizarConta: (input: {
+    nome: string;
+    telefone: string;
+    senha?: string;
+  }) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -113,6 +122,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
       }
 
+      if (
+        data.user &&
+        Array.isArray(data.user.identities) &&
+        data.user.identities.length === 0
+      ) {
+        throw new Error("Este e-mail já está cadastrado.");
+      }
+
       if (!data.session || !data.user) {
         return { needsConfirmation: true };
       }
@@ -145,6 +162,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await carregarPerfil(session?.user ?? null);
   }, [carregarPerfil, session?.user]);
 
+  const atualizarConta = useCallback(
+    async (input: { nome: string; telefone: string; senha?: string }) => {
+      const userId = session?.user?.id;
+      if (!userId) {
+        throw new Error("Não autenticado.");
+      }
+
+      const perfil = await atualizarPerfil(userId, {
+        nome: input.nome,
+        telefone: input.telefone,
+      });
+      setUsuario(perfil);
+
+      const senha = input.senha?.trim();
+      if (senha) {
+        const { error } = await supabase.auth.updateUser({ password: senha });
+        if (error) {
+          throw error;
+        }
+      }
+    },
+    [session?.user?.id]
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
@@ -155,8 +196,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signOut,
       recarregarUsuario,
+      atualizarConta,
     }),
-    [session, usuario, loading, signIn, signUp, signOut, recarregarUsuario]
+    [
+      session,
+      usuario,
+      loading,
+      signIn,
+      signUp,
+      signOut,
+      recarregarUsuario,
+      atualizarConta,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

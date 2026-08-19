@@ -12,6 +12,20 @@ export type Galpao = {
   id: string;
   nome: string;
   codigo: string | null;
+  limiarTensao: number;
+  limiarCorrente: number;
+  papel: string;
+};
+
+export type GalpaoRow = {
+  id: string;
+  nome: string;
+  codigo: string | null;
+  limiar_tensao?: number | string | null;
+  limiar_corrente?: number | string | null;
+  limiarTensao?: number;
+  limiarCorrente?: number;
+  papel?: string;
 };
 
 export type Leitura = {
@@ -25,5 +39,6 @@ export type Leitura = {
 
 export type UsuarioGalpaoRow = {
   galpao_id: string;
-  galpoes: Galpao | Galpao[] | null;
+  papel?: string;
+  galpoes: GalpaoRow | GalpaoRow[] | null;
 };

@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react-
 import { Alert } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/contexts/auth";
-import { buscarUltimaLeitura, listarGalpoesDoUsuario } from "@/lib/database";
+import { buscarUltimaLeitura, listarAcessosDoGalpao, listarGalpoesDoUsuario } from "@/lib/database";
 import { supabase } from "@/lib/supabase";
 import GalpaoDetalheScreen from "@/app/(private)/galpao/[id]/page";
 import {
@@ -31,6 +31,10 @@ jest.mock("@/contexts/auth", () => ({
 jest.mock("@/lib/database", () => ({
   listarGalpoesDoUsuario: jest.fn(),
   buscarUltimaLeitura: jest.fn(),
+  listarAcessosDoGalpao: jest.fn(),
+  atualizarGalpao: jest.fn(),
+  removerAcessoDoGalpao: jest.fn(),
+  apagarGalpao: jest.fn(),
 }));
 
 jest.mock("@/lib/supabase", () => ({
@@ -76,6 +80,7 @@ describe("GalpaoDetalheScreen", () => {
       galpaoNorte,
       galpaoSul,
     ]);
+    (listarAcessosDoGalpao as jest.Mock).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -182,5 +187,38 @@ describe("GalpaoDetalheScreen", () => {
     expect(await screen.findByText("Bateria")).toBeOnTheScreen();
     expect(screen.getByText("2.5 V")).toBeOnTheScreen();
     expect(screen.getByText("20 mA")).toBeOnTheScreen();
+  });
+
+  it("abre o acesso do galpão selecionado", async () => {
+    (buscarUltimaLeitura as jest.Mock).mockResolvedValue(leituraNormal);
+    (listarAcessosDoGalpao as jest.Mock).mockResolvedValue([
+      {
+        usuarioId: "user-1",
+        nome: "Maria Silva",
+        email: "maria@chicksafe.app",
+        papel: "dono",
+      },
+    ]);
+    render(<GalpaoDetalheScreen />);
+    await screen.findByText("Fonte");
+
+    fireEvent.press(screen.getByLabelText("Ver acesso de Galpão Norte"));
+
+    expect(await screen.findByText("Acesso — Galpão Norte")).toBeOnTheScreen();
+    expect(listarAcessosDoGalpao).toHaveBeenCalledWith("galpao-1");
+    expect(screen.getByText("Maria Silva — Dono")).toBeOnTheScreen();
+  });
+
+  it("abre as configurações do galpão selecionado", async () => {
+    (buscarUltimaLeitura as jest.Mock).mockResolvedValue(leituraNormal);
+    render(<GalpaoDetalheScreen />);
+    await screen.findByText("Fonte");
+
+    fireEvent.press(screen.getByLabelText("Configurar Galpão Norte"));
+
+    expect(
+      await screen.findByText("Configurações — Galpão Norte")
+    ).toBeOnTheScreen();
+    expect(screen.getByText("Limiar de tensão (V)")).toBeOnTheScreen();
   });
 });

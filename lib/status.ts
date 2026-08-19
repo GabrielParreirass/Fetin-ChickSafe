@@ -9,12 +9,18 @@ export function rotuloEnergia(energia: string): "Fonte" | "Bateria" {
   return energiaEhFonte(energia) ? "Fonte" : "Bateria";
 }
 
-export function tensaoOk(tensaoV: number): boolean {
-  return tensaoV > LIMIAR_TENSAO_V;
+export function tensaoOk(
+  tensaoV: number,
+  limiar: number = LIMIAR_TENSAO_V
+): boolean {
+  return tensaoV > limiar;
 }
 
-export function correnteOk(correnteMa: number): boolean {
-  return correnteMa > LIMIAR_CORRENTE_MA;
+export function correnteOk(
+  correnteMa: number,
+  limiar: number = LIMIAR_CORRENTE_MA
+): boolean {
+  return correnteMa > limiar;
 }
 
 export function rotuloSituacao(ok: boolean): string {

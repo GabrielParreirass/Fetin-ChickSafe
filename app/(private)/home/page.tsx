@@ -1,5 +1,6 @@
 import { useAuth } from "@/contexts/auth";
 import { useSimulador } from "@/contexts/simulador";
+import { useGalpaoGestao } from "@/components/galpao-gestao";
 import {
   criarGalpao,
   entrarGalpaoPorCodigo,
@@ -51,6 +52,10 @@ export default function HomeLogadaScreen() {
       setCarregando(false);
     }
   }, [user]);
+
+  const { abrirAcessos, abrirConfig, modais: modaisGestao } = useGalpaoGestao({
+    aoAtualizar: carregar,
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -119,6 +124,13 @@ export default function HomeLogadaScreen() {
         <Text style={styles.userName}>Olá, {primeiroNome}!</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
+            onPress={() => router.push("/(private)/perfil/page" as Href)}
+            style={styles.headerButton}
+            accessibilityLabel="Abrir perfil"
+          >
+            <MaterialIcons name="person" size={26} color="#333" />
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={() => router.push("/(private)/historico/page" as Href)}
             style={styles.headerButton}
             accessibilityLabel="Abrir histórico"
@@ -154,23 +166,42 @@ export default function HomeLogadaScreen() {
               </Text>
             }
             renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.galpaoCard}
-                onPress={() => abrirGalpao(item)}
-              >
-                <MaterialIcons name="home" size={28} color="#333" />
-                <Text style={styles.galpaoNome}>{item.nome}</Text>
-                {item.codigo ? (
-                  <Text style={styles.galpaoCodigo}>{item.codigo}</Text>
-                ) : null}
-              </TouchableOpacity>
+              <View style={styles.galpaoCard}>
+                <TouchableOpacity
+                  style={styles.galpaoCardMain}
+                  onPress={() => abrirGalpao(item)}
+                >
+                  <MaterialIcons name="home" size={28} color="#333" />
+                  <Text style={styles.galpaoNome}>{item.nome}</Text>
+                  {item.codigo ? (
+                    <Text style={styles.galpaoCodigo}>{item.codigo}</Text>
+                  ) : null}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.configButton}
+                  onPress={() => abrirConfig(item)}
+                  accessibilityLabel={`Configurar ${item.nome}`}
+                >
+                  <MaterialIcons name="settings" size={20} color="#333" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.acessoButton}
+                  onPress={() => void abrirAcessos(item)}
+                  accessibilityLabel={`Ver acesso de ${item.nome}`}
+                >
+                  <MaterialIcons name="group" size={20} color="#333" />
+                </TouchableOpacity>
+              </View>
             )}
           />
         )}
 
         <View style={styles.footerActions}>
           <TouchableOpacity
-            style={ativo ? styles.primaryButton : styles.secondaryButton}
+            style={[
+              ativo ? styles.primaryButton : styles.secondaryButton,
+              styles.footerButton,
+            ]}
             onPress={() => (ativo ? parar() : void iniciar())}
           >
             <Text
@@ -186,7 +217,7 @@ export default function HomeLogadaScreen() {
             </Text>
           ) : null}
           <TouchableOpacity
-            style={styles.secondaryButton}
+            style={[styles.secondaryButton, styles.footerButton]}
             onPress={() => setModal("entrar")}
           >
             <Text style={styles.secondaryButtonText}>Entrar com código</Text>
@@ -200,7 +231,13 @@ export default function HomeLogadaScreen() {
         </View>
       </View>
 
-      <Modal visible={modal != null} transparent animationType="fade">
+      {modaisGestao}
+
+      <Modal
+        visible={modal === "entrar" || modal === "criar"}
+        transparent
+        animationType="fade"
+      >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
@@ -296,6 +333,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  galpaoCardMain: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+  },
+  acessoButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    padding: 4,
+  },
+  configButton: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    padding: 4,
+  },
   galpaoNome: {
     fontSize: 13,
     fontWeight: "bold",
@@ -316,13 +370,17 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   footerActions: {
-    gap: 10,
-    paddingTop: 8,
+    paddingTop: 20,
+    paddingBottom: 4,
+  },
+  footerButton: {
+    marginBottom: 16,
   },
   simuladorStatus: {
     fontSize: 13,
     color: "#555",
     textAlign: "center",
+    marginBottom: 16,
   },
   primaryButton: {
     backgroundColor: "#333",
@@ -379,5 +437,84 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textDecorationLine: "underline",
     marginTop: 4,
+  },
+  emptyAcessoText: {
+    fontSize: 15,
+    color: "#555",
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  acessoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  acessoInfo: {
+    flex: 1,
+  },
+  acessoNome: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  acessoEmail: {
+    fontSize: 13,
+    color: "#777",
+    marginTop: 2,
+  },
+  acessoPapel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+  },
+  campoLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#555",
+    marginTop: 4,
+  },
+  campoValor: {
+    fontSize: 16,
+    color: "#333",
+    marginBottom: 8,
+  },
+  campoAjuda: {
+    fontSize: 12,
+    color: "#777",
+    marginBottom: 8,
+  },
+  erroAcesso: {
+    color: "#8B0000",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  avisoAcesso: {
+    color: "#333",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  removerText: {
+    color: "#8B0000",
+    fontSize: 14,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
+  dangerButton: {
+    borderWidth: 2,
+    borderColor: "#8B0000",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  dangerButtonText: {
+    color: "#8B0000",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

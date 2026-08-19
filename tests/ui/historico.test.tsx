@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/contexts/auth";
 import { listarGalpoesDoUsuario, listarLeituras } from "@/lib/database";
 import HistoricoScreen from "@/app/(private)/historico/page";
+import { formatarDataAcessivel } from "@/lib/calendario";
 import {
   galpaoNorte,
   galpaoSul,
@@ -84,7 +85,7 @@ describe("HistoricoScreen", () => {
     expect(screen.getByText("Anterior: Fonte")).toBeOnTheScreen();
     expect(screen.getByText("Novo: Bateria")).toBeOnTheScreen();
     expect(screen.getByText("Tensão da Bateria")).toBeOnTheScreen();
-    expect(screen.getByText("Corrente do ventilador")).toBeOnTheScreen();
+    expect(screen.getAllByText("Corrente do ventilador").length).toBeGreaterThan(0);
   });
 
   it("volta pela seta do header", async () => {
@@ -130,5 +131,56 @@ describe("HistoricoScreen", () => {
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith("Histórico", "timeout");
     });
+  });
+
+  it("filtra pelo tipo de mudança", async () => {
+    (listarLeituras as jest.Mock).mockResolvedValue([
+      leituraNormal,
+      leituraAlerta,
+    ]);
+    render(<HistoricoScreen />);
+    expect(await screen.findByText("Energia")).toBeOnTheScreen();
+    expect(screen.getByText("Tensão da Bateria")).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByText("Tensão da bateria"));
+
+    expect(screen.getByText("Tensão da Bateria")).toBeOnTheScreen();
+    expect(screen.queryByText("Anterior: Fonte")).toBeNull();
+    expect(screen.queryByText("Anterior: Alerta (20 mA)")).toBeNull();
+    expect(screen.getByText("Anterior: Normal (4.2 V)")).toBeOnTheScreen();
+    expect(screen.getByText("Novo: Alerta (2.5 V)")).toBeOnTheScreen();
+  });
+
+  it("filtra por data escolhida no calendário", async () => {
+    (listarLeituras as jest.Mock).mockResolvedValue([
+      leituraNormal,
+      leituraAlerta,
+    ]);
+    render(<HistoricoScreen />);
+    expect(await screen.findByText("Energia")).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByLabelText("Escolher data inicial"));
+    expect(screen.getByText("Seg")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Mês anterior")).toBeOnTheScreen();
+
+    const dia20 = new Date();
+    dia20.setDate(20);
+    fireEvent.press(screen.getByLabelText(formatarDataAcessivel(dia20)));
+
+    expect(
+      await screen.findByText("Nenhuma mudança neste filtro.")
+    ).toBeOnTheScreen();
+  });
+
+  it("abre o calendário da data final", async () => {
+    (listarLeituras as jest.Mock).mockResolvedValue([leituraNormal]);
+    render(<HistoricoScreen />);
+    await screen.findByText(/Nenhuma mudança registrada ainda/);
+
+    fireEvent.press(screen.getByLabelText("Escolher data final"));
+
+    expect(screen.getByLabelText("Mês anterior")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Próximo mês")).toBeOnTheScreen();
+    expect(screen.getByText("Seg")).toBeOnTheScreen();
   });
 });

@@ -1,10 +1,10 @@
 import { useAuth } from "@/contexts/auth";
 import { soDigitos } from "@/lib/database";
+import { mensagemDeErro } from "@/lib/erros";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -23,31 +23,41 @@ export default function CadastroScreen() {
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [codigoGalpao, setCodigoGalpao] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState("");
+  const [aviso, setAviso] = useState("");
+
+  const atualizarCampo = (setter: (valor: string) => void) => (valor: string) => {
+    setter(valor);
+    setErro("");
+    setAviso("");
+  };
 
   const handleCadastro = async () => {
     const cpfLimpo = soDigitos(cpf);
 
     if (!nome.trim() || !email.trim() || !telefone.trim() || !senha) {
-      Alert.alert("Cadastro", "Preencha nome, e-mail, telefone e senha.");
+      setErro("Preencha nome, e-mail, telefone e senha.");
       return;
     }
 
     if (cpfLimpo.length !== 11) {
-      Alert.alert("Cadastro", "Informe um CPF com 11 dígitos.");
+      setErro("Informe um CPF com 11 dígitos.");
       return;
     }
 
     if (senha.length < 6) {
-      Alert.alert("Cadastro", "A senha deve ter pelo menos 6 caracteres.");
+      setErro("A senha deve ter pelo menos 6 caracteres.");
       return;
     }
 
     if (senha !== confirmarSenha) {
-      Alert.alert("Cadastro", "As senhas não coincidem.");
+      setErro("As senhas não coincidem.");
       return;
     }
 
     try {
+      setErro("");
+      setAviso("");
       setEnviando(true);
       const resultado = await signUp({
         nome,
@@ -59,16 +69,12 @@ export default function CadastroScreen() {
       });
 
       if (resultado.needsConfirmation) {
-        Alert.alert(
-          "Confirme seu e-mail",
+        setAviso(
           "Sua conta foi criada. Confirme o e-mail e depois faça login."
         );
-        router.navigate("/(auth)/login/page");
       }
     } catch (error) {
-      const mensagem =
-        error instanceof Error ? error.message : "Não foi possível criar a conta.";
-      Alert.alert("Cadastro", mensagem);
+      setErro(mensagemDeErro(error, "Não foi possível criar a conta."));
     } finally {
       setEnviando(false);
     }
@@ -85,7 +91,7 @@ export default function CadastroScreen() {
         placeholder="Nome completo"
         placeholderTextColor="#555"
         value={nome}
-        onChangeText={setNome}
+        onChangeText={atualizarCampo(setNome)}
       />
 
       <TextInput
@@ -94,7 +100,7 @@ export default function CadastroScreen() {
         placeholderTextColor="#555"
         keyboardType="number-pad"
         value={cpf}
-        onChangeText={setCpf}
+        onChangeText={atualizarCampo(setCpf)}
       />
 
       <TextInput
@@ -105,7 +111,7 @@ export default function CadastroScreen() {
         autoCapitalize="none"
         autoComplete="email"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={atualizarCampo(setEmail)}
       />
 
       <TextInput
@@ -114,7 +120,7 @@ export default function CadastroScreen() {
         placeholderTextColor="#555"
         keyboardType="phone-pad"
         value={telefone}
-        onChangeText={setTelefone}
+        onChangeText={atualizarCampo(setTelefone)}
       />
 
       <TextInput
@@ -123,7 +129,7 @@ export default function CadastroScreen() {
         placeholderTextColor="#555"
         secureTextEntry
         value={senha}
-        onChangeText={setSenha}
+        onChangeText={atualizarCampo(setSenha)}
       />
 
       <TextInput
@@ -132,7 +138,7 @@ export default function CadastroScreen() {
         placeholderTextColor="#555"
         secureTextEntry
         value={confirmarSenha}
-        onChangeText={setConfirmarSenha}
+        onChangeText={atualizarCampo(setConfirmarSenha)}
       />
 
       <TextInput
@@ -141,8 +147,11 @@ export default function CadastroScreen() {
         placeholderTextColor="#555"
         autoCapitalize="characters"
         value={codigoGalpao}
-        onChangeText={setCodigoGalpao}
+        onChangeText={atualizarCampo(setCodigoGalpao)}
       />
+
+      {erro ? <Text style={styles.erro}>{erro}</Text> : null}
+      {aviso ? <Text style={styles.aviso}>{aviso}</Text> : null}
 
       <TouchableOpacity
         style={[styles.button, enviando && styles.buttonDisabled]}
@@ -186,6 +195,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
     color: "#333",
+  },
+  erro: {
+    width: "100%",
+    color: "#8B0000",
+    fontSize: 15,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  aviso: {
+    width: "100%",
+    color: "#333",
+    fontSize: 15,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 16,
   },
   button: {
     backgroundColor: "#333",

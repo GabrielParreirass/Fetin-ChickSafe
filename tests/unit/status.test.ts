@@ -44,6 +44,11 @@ describe("tensaoOk", () => {
     expect(tensaoOk(3.1)).toBe(true);
     expect(tensaoOk(5)).toBe(true);
   });
+
+  it("usa o limiar informado quando ele é passado", () => {
+    expect(tensaoOk(3.5, 4)).toBe(false);
+    expect(tensaoOk(4.1, 4)).toBe(true);
+  });
 });
 
 describe("correnteOk", () => {
@@ -56,6 +61,11 @@ describe("correnteOk", () => {
   it("considera normal acima de 50 mA", () => {
     expect(correnteOk(51)).toBe(true);
     expect(correnteOk(120)).toBe(true);
+  });
+
+  it("usa o limiar informado quando ele é passado", () => {
+    expect(correnteOk(60, 80)).toBe(false);
+    expect(correnteOk(81, 80)).toBe(true);
   });
 });
 
