@@ -1,12 +1,19 @@
 import { useAuth } from "@/contexts/auth";
 import { useSimulador } from "@/contexts/simulador";
 import { useGalpaoGestao } from "@/components/galpao-gestao";
+import { SinoNotificacoes } from "@/components/notificacoes";
 import {
+  buscarLeiturasAprovadas,
   criarGalpao,
   entrarGalpaoPorCodigo,
   listarGalpoesDoUsuario,
 } from "@/lib/database";
-import type { Galpao } from "@/lib/types";
+import { acessoAprovado } from "@/lib/galpao";
+import {
+  resumoLeitura,
+  statusGeralLeitura,
+} from "@/lib/status";
+import type { Galpao, Leitura } from "@/lib/types";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Href, router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
@@ -27,6 +34,7 @@ export default function HomeLogadaScreen() {
   const { usuario, user, signOut } = useAuth();
   const { ativo, ultima, iniciar, parar } = useSimulador();
   const [galpoes, setGalpoes] = useState<Galpao[]>([]);
+  const [leituras, setLeituras] = useState<Record<string, Leitura | null>>({});
   const [carregando, setCarregando] = useState(true);
   const [modal, setModal] = useState<"entrar" | "criar" | null>(null);
   const [codigo, setCodigo] = useState("");
@@ -44,6 +52,7 @@ export default function HomeLogadaScreen() {
       setCarregando(true);
       const lista = await listarGalpoesDoUsuario(user.id);
       setGalpoes(lista);
+      setLeituras(await buscarLeiturasAprovadas(lista));
     } catch (error) {
       const mensagem =
         error instanceof Error ? error.message : "Falha ao carregar galpões.";
@@ -54,6 +63,7 @@ export default function HomeLogadaScreen() {
   }, [user]);
 
   const { abrirAcessos, abrirConfig, modais: modaisGestao } = useGalpaoGestao({
+    usuarioId: usuario?.id ?? user?.id,
     aoAtualizar: carregar,
   });
 
@@ -64,6 +74,13 @@ export default function HomeLogadaScreen() {
   );
 
   const abrirGalpao = (galpao: Galpao) => {
+    if (!acessoAprovado(galpao)) {
+      Alert.alert(
+        "Aguardando aprovação",
+        "O dono ainda precisa aprovar o seu acesso a este galpão."
+      );
+      return;
+    }
     router.push(`/(private)/galpao/${galpao.id}/page` as Href);
   };
 
@@ -82,6 +99,10 @@ export default function HomeLogadaScreen() {
           return;
         }
         await entrarGalpaoPorCodigo(codigo);
+        Alert.alert(
+          "Pedido enviado",
+          "O dono precisa aprovar o acesso a este galpão."
+        );
       } else if (modal === "criar") {
         if (!nomeGalpao.trim()) {
           Alert.alert("Galpão", "Informe o nome do galpão.");
@@ -121,7 +142,12 @@ export default function HomeLogadaScreen() {
       <StatusBar backgroundColor="#f9ca0a" barStyle="dark-content" />
 
       <View style={styles.header}>
-        <Text style={styles.userName}>Olá, {primeiroNome}!</Text>
+        <View style={styles.userGreeting}>
+          <Text style={styles.userName} numberOfLines={1}>
+            Olá, {primeiroNome}!
+          </Text>
+          <SinoNotificacoes usuarioId={usuario?.id ?? user?.id} />
+        </View>
         <View style={styles.headerActions}>
           <TouchableOpacity
             onPress={() => router.push("/(private)/perfil/page" as Href)}
@@ -165,25 +191,59 @@ export default function HomeLogadaScreen() {
                 crie o primeiro.
               </Text>
             }
-            renderItem={({ item }) => (
+            renderItem={({ item }) => {
+              const pendente = !acessoAprovado(item);
+              const leitura = leituras[item.id] ?? null;
+              const geral = pendente
+                ? null
+                : statusGeralLeitura(
+                    leitura,
+                    item.limiarTensao,
+                    item.limiarCorrente
+                  );
+              const rotuloStatus = pendente
+                ? "Aguardando aprovação"
+                : geral?.rotulo ?? "Sem dados";
+              const corStatus = pendente
+                ? "#F9A825"
+                : geral?.rotulo === "Normal"
+                  ? "#4CAF50"
+                  : geral?.rotulo === "Alerta"
+                    ? "#F44336"
+                    : "#9E9E9E";
+
+              return (
               <View style={styles.galpaoCard}>
                 <TouchableOpacity
                   style={styles.galpaoCardMain}
                   onPress={() => abrirGalpao(item)}
+                  accessibilityLabel={`${item.nome}, ${rotuloStatus}`}
                 >
                   <MaterialIcons name="home" size={28} color="#333" />
                   <Text style={styles.galpaoNome}>{item.nome}</Text>
                   {item.codigo ? (
                     <Text style={styles.galpaoCodigo}>{item.codigo}</Text>
                   ) : null}
+                  <View
+                    style={[styles.statusBadge, { backgroundColor: corStatus }]}
+                  >
+                    <Text style={styles.statusBadgeText}>{rotuloStatus}</Text>
+                  </View>
+                  {!pendente && leitura ? (
+                    <Text style={styles.galpaoLeitura}>
+                      {resumoLeitura(leitura)}
+                    </Text>
+                  ) : null}
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.configButton}
-                  onPress={() => abrirConfig(item)}
-                  accessibilityLabel={`Configurar ${item.nome}`}
-                >
-                  <MaterialIcons name="settings" size={20} color="#333" />
-                </TouchableOpacity>
+                {!pendente ? (
+                  <TouchableOpacity
+                    style={styles.configButton}
+                    onPress={() => abrirConfig(item)}
+                    accessibilityLabel={`Configurar ${item.nome}`}
+                  >
+                    <MaterialIcons name="settings" size={20} color="#333" />
+                  </TouchableOpacity>
+                ) : null}
                 <TouchableOpacity
                   style={styles.acessoButton}
                   onPress={() => void abrirAcessos(item)}
@@ -192,7 +252,8 @@ export default function HomeLogadaScreen() {
                   <MaterialIcons name="group" size={20} color="#333" />
                 </TouchableOpacity>
               </View>
-            )}
+              );
+            }}
           />
         )}
 
@@ -286,11 +347,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
+  userGreeting: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    minWidth: 0,
+    marginRight: 8,
+  },
   userName: {
     fontSize: 24,
     fontWeight: "bold",
     color: "#333",
-    flex: 1,
+    flexShrink: 1,
   },
   headerActions: {
     flexDirection: "row",
@@ -328,7 +397,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f1f1f1",
     borderRadius: 15,
     width: "47%",
-    minHeight: 130,
+    minHeight: 168,
     padding: 12,
     alignItems: "center",
     justifyContent: "center",
@@ -361,6 +430,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#777",
     marginTop: 4,
+  },
+  statusBadge: {
+    marginTop: 8,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  statusBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  galpaoLeitura: {
+    fontSize: 11,
+    color: "#555",
+    marginTop: 6,
+    textAlign: "center",
   },
   emptyText: {
     fontSize: 16,

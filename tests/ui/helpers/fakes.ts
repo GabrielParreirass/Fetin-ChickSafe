@@ -15,6 +15,7 @@ export const galpaoNorte = {
   limiarTensao: 3,
   limiarCorrente: 50,
   papel: "dono",
+  statusAcesso: "aprovado" as const,
 };
 
 export const galpaoSul = {
@@ -24,11 +25,17 @@ export const galpaoSul = {
   limiarTensao: 3,
   limiarCorrente: 50,
   papel: "dono",
+  statusAcesso: "aprovado" as const,
 };
 
 export const galpaoNorteFuncionario = {
   ...galpaoNorte,
   papel: "operador",
+};
+
+export const galpaoNortePendente = {
+  ...galpaoNorteFuncionario,
+  statusAcesso: "pendente" as const,
 };
 
 export const leituraNormal = {

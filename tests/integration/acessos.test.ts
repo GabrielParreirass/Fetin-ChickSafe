@@ -33,12 +33,14 @@ const MEMBROS_ORDENADOS = [
     nome: "Maria Silva",
     email: "maria@chicksafe.app",
     papel: "dono",
+    status: "aprovado",
   },
   {
     usuarioId: "user-2",
     nome: "Bruno",
     email: "bruno@chicksafe.app",
     papel: "operador",
+    status: "aprovado",
   },
 ];
 
@@ -81,6 +83,7 @@ describe("listarAcessosDoGalpao", () => {
         nome: "Usuário",
         email: "",
         papel: "dono",
+        status: "aprovado",
       },
     ]);
   });
@@ -146,6 +149,7 @@ describe("listarAcessosDoGalpao", () => {
         nome: "Usuário",
         email: "",
         papel: "dono",
+        status: "aprovado",
       },
     ]);
   });
@@ -168,5 +172,44 @@ describe("listarAcessosDoGalpao", () => {
     );
 
     await expect(listarAcessosDoGalpao("galpao-1")).rejects.toEqual(erro);
+  });
+
+  it("marca o funcionário como pendente quando a RPC traz o status", async () => {
+    supabaseMocks().rpc.mockResolvedValue({
+      data: [
+        {
+          usuario_id: "user-2",
+          nome: "Bruno",
+          email: "bruno@chicksafe.app",
+          papel: "operador",
+          status: "pendente",
+        },
+        {
+          usuario_id: "user-1",
+          nome: "Maria Silva",
+          email: "maria@chicksafe.app",
+          papel: "dono",
+          status: "aprovado",
+        },
+      ],
+      error: null,
+    });
+
+    await expect(listarAcessosDoGalpao("galpao-1")).resolves.toEqual([
+      {
+        usuarioId: "user-1",
+        nome: "Maria Silva",
+        email: "maria@chicksafe.app",
+        papel: "dono",
+        status: "aprovado",
+      },
+      {
+        usuarioId: "user-2",
+        nome: "Bruno",
+        email: "bruno@chicksafe.app",
+        papel: "operador",
+        status: "pendente",
+      },
+    ]);
   });
 });

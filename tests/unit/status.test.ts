@@ -7,6 +7,8 @@ import {
   LIMIAR_TENSAO_V,
   rotuloEnergia,
   rotuloSituacao,
+  statusGeralLeitura,
+  resumoLeitura,
   tensaoOk,
 } from "@/lib/status";
 
@@ -73,6 +75,38 @@ describe("rotuloSituacao", () => {
   it("traduz booleano para Normal ou Alerta", () => {
     expect(rotuloSituacao(true)).toBe("Normal");
     expect(rotuloSituacao(false)).toBe("Alerta");
+  });
+});
+
+describe("statusGeralLeitura", () => {
+  it("marca Sem dados quando não há leitura", () => {
+    expect(statusGeralLeitura(null)).toEqual({
+      ok: false,
+      rotulo: "Sem dados",
+    });
+  });
+
+  it("marca Normal quando energia, tensão e corrente estão ok", () => {
+    expect(
+      statusGeralLeitura({ energia: "Fonte", tensao: 4.2, corrente: 80 })
+    ).toEqual({ ok: true, rotulo: "Normal" });
+  });
+
+  it("marca Alerta se qualquer campo falha", () => {
+    expect(
+      statusGeralLeitura({ energia: "Bateria", tensao: 4.2, corrente: 80 })
+    ).toEqual({ ok: false, rotulo: "Alerta" });
+    expect(
+      statusGeralLeitura({ energia: "Fonte", tensao: 2.5, corrente: 80 })
+    ).toEqual({ ok: false, rotulo: "Alerta" });
+  });
+});
+
+describe("resumoLeitura", () => {
+  it("junta energia, tensão e corrente", () => {
+    expect(
+      resumoLeitura({ energia: "USB", tensao: 4.2, corrente: 80 })
+    ).toBe("Fonte · 4.2 V · 80 mA");
   });
 });
 

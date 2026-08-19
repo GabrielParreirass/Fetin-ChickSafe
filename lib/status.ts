@@ -34,3 +34,37 @@ export function formatarTensao(tensaoV: number): string {
 export function formatarCorrente(correnteMa: number): string {
   return `${Math.round(correnteMa)} mA`;
 }
+
+export type StatusGeral = {
+  ok: boolean;
+  rotulo: "Normal" | "Alerta" | "Sem dados";
+};
+
+export function statusGeralLeitura(
+  leitura: {
+    energia: string;
+    tensao: number | string;
+    corrente: number | string;
+  } | null,
+  limiarTensao: number = LIMIAR_TENSAO_V,
+  limiarCorrente: number = LIMIAR_CORRENTE_MA
+): StatusGeral {
+  if (!leitura) {
+    return { ok: false, rotulo: "Sem dados" };
+  }
+
+  const ok =
+    rotuloEnergia(leitura.energia) === "Fonte" &&
+    tensaoOk(Number(leitura.tensao), limiarTensao) &&
+    correnteOk(Number(leitura.corrente), limiarCorrente);
+
+  return { ok, rotulo: ok ? "Normal" : "Alerta" };
+}
+
+export function resumoLeitura(leitura: {
+  energia: string;
+  tensao: number | string;
+  corrente: number | string;
+}): string {
+  return `${rotuloEnergia(leitura.energia)} · ${formatarTensao(Number(leitura.tensao))} · ${formatarCorrente(Number(leitura.corrente))}`;
+}

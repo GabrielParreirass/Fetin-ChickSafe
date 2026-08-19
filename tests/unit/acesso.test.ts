@@ -4,6 +4,7 @@ import {
   mapearAcessoRow,
   ordenarAcessos,
   rotuloPapel,
+  statusAcessoDe,
 } from "@/lib/acesso";
 import type { AcessoGalpao } from "@/lib/acesso";
 
@@ -12,6 +13,7 @@ const dono: AcessoGalpao = {
   nome: "Maria Silva",
   email: "maria@chicksafe.app",
   papel: "dono",
+  status: "aprovado",
 };
 
 const operadorB: AcessoGalpao = {
@@ -19,6 +21,7 @@ const operadorB: AcessoGalpao = {
   nome: "Bruno",
   email: "bruno@chicksafe.app",
   papel: "operador",
+  status: "aprovado",
 };
 
 const operadorA: AcessoGalpao = {
@@ -26,6 +29,7 @@ const operadorA: AcessoGalpao = {
   nome: "Ana",
   email: "ana@chicksafe.app",
   papel: "operador",
+  status: "aprovado",
 };
 
 describe("rotuloPapel", () => {
@@ -51,9 +55,10 @@ describe("ehDono", () => {
 });
 
 describe("formatarLinhaAcesso", () => {
-  it("junta nome e função na mesma linha", () => {
-    expect(formatarLinhaAcesso(dono)).toBe("Maria Silva — Dono");
-    expect(formatarLinhaAcesso(operadorB)).toBe("Bruno — Funcionário");
+  it("marca pedido pendente na linha", () => {
+    expect(
+      formatarLinhaAcesso({ ...operadorB, status: "pendente" })
+    ).toBe("Bruno — Funcionário (pendente)");
   });
 });
 
@@ -96,7 +101,16 @@ describe("mapearAcessoRow", () => {
       nome: "Usuário",
       email: "",
       papel: "dono",
+      status: "aprovado",
     });
+  });
+});
+
+describe("statusAcessoDe", () => {
+  it("só trata pendente como pendente", () => {
+    expect(statusAcessoDe("pendente")).toBe("pendente");
+    expect(statusAcessoDe("aprovado")).toBe("aprovado");
+    expect(statusAcessoDe(undefined)).toBe("aprovado");
   });
 });
 
@@ -106,6 +120,15 @@ describe("ordenarAcessos", () => {
       dono,
       operadorA,
       operadorB,
+    ]);
+  });
+
+  it("coloca pendentes depois do dono", () => {
+    const pendente = { ...operadorB, status: "pendente" as const };
+    expect(ordenarAcessos([operadorA, pendente, dono])).toEqual([
+      dono,
+      pendente,
+      operadorA,
     ]);
   });
 

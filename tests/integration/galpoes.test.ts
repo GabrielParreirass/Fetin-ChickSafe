@@ -7,11 +7,14 @@ jest.mock("@/lib/supabase", () => ({
 
 import {
   apagarGalpao,
+  aprovarAcessoDoGalpao,
   atualizarGalpao,
   criarGalpao,
   entrarGalpaoPorCodigo,
   listarGalpoesDoUsuario,
+  recusarAcessoDoGalpao,
   removerAcessoDoGalpao,
+  sairDoGalpao,
 } from "@/lib/database";
 import type { Galpao } from "@/lib/types";
 import {
@@ -27,6 +30,7 @@ const GALPAO: Galpao = {
   limiarTensao: 3,
   limiarCorrente: 50,
   papel: "dono",
+  statusAcesso: "aprovado",
 };
 
 const GALPAO_ROW = {
@@ -45,7 +49,7 @@ describe("listarGalpoesDoUsuario", () => {
   it("desembrulha galpão como objeto e ignora relações nulas", async () => {
     const consulta = createMockQuery({
       data: [
-        { galpao_id: "galpao-1", papel: "dono", galpoes: GALPAO_ROW },
+        { galpao_id: "galpao-1", papel: "dono", status: "aprovado", galpoes: GALPAO_ROW },
         { galpao_id: "galpao-2", papel: "operador", galpoes: null },
       ],
       error: null,
@@ -203,6 +207,51 @@ describe("apagarGalpao", () => {
 
     await expect(apagarGalpao("galpao-1")).resolves.toBeUndefined();
     expect(supabaseMocks().rpc).toHaveBeenCalledWith("apagar_galpao", {
+      p_galpao_id: "galpao-1",
+    });
+  });
+});
+
+describe("aprovar e recusar acesso", () => {
+  beforeEach(() => {
+    resetSupabaseMocks();
+  });
+
+  it("aprova o pedido pendente", async () => {
+    supabaseMocks().rpc.mockResolvedValue({ data: null, error: null });
+
+    await expect(
+      aprovarAcessoDoGalpao("galpao-1", "user-2")
+    ).resolves.toBeUndefined();
+    expect(supabaseMocks().rpc).toHaveBeenCalledWith("aprovar_acesso_galpao", {
+      p_galpao_id: "galpao-1",
+      p_usuario_id: "user-2",
+    });
+  });
+
+  it("recusa o pedido pendente", async () => {
+    supabaseMocks().rpc.mockResolvedValue({ data: null, error: null });
+
+    await expect(
+      recusarAcessoDoGalpao("galpao-1", "user-2")
+    ).resolves.toBeUndefined();
+    expect(supabaseMocks().rpc).toHaveBeenCalledWith("recusar_acesso_galpao", {
+      p_galpao_id: "galpao-1",
+      p_usuario_id: "user-2",
+    });
+  });
+});
+
+describe("sairDoGalpao", () => {
+  beforeEach(() => {
+    resetSupabaseMocks();
+  });
+
+  it("chama a RPC para o próprio usuário sair", async () => {
+    supabaseMocks().rpc.mockResolvedValue({ data: null, error: null });
+
+    await expect(sairDoGalpao("galpao-1")).resolves.toBeUndefined();
+    expect(supabaseMocks().rpc).toHaveBeenCalledWith("sair_do_galpao", {
       p_galpao_id: "galpao-1",
     });
   });

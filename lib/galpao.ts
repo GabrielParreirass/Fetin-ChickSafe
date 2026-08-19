@@ -1,6 +1,6 @@
-import { ehDono } from "@/lib/acesso";
+import { ehDono, statusAcessoDe } from "@/lib/acesso";
 import { LIMIAR_CORRENTE_MA, LIMIAR_TENSAO_V } from "@/lib/status";
-import type { Galpao, GalpaoRow } from "@/lib/types";
+import type { Galpao, GalpaoRow, UsuarioGalpaoRow } from "@/lib/types";
 
 export function numeroLimiar(
   valor: number | string | null | undefined,
@@ -12,7 +12,8 @@ export function numeroLimiar(
 
 export function mapearGalpao(
   row: GalpaoRow | Galpao | null | undefined,
-  papel?: string
+  papel?: string,
+  status?: string
 ): Galpao | null {
   if (row == null) {
     return null;
@@ -31,11 +32,25 @@ export function mapearGalpao(
       LIMIAR_CORRENTE_MA
     ),
     papel: papel ?? row.papel ?? "operador",
+    statusAcesso: statusAcessoDe(
+      status ?? ("statusAcesso" in row ? row.statusAcesso : undefined)
+    ),
   };
+}
+
+export function mapearVinculoGalpao(row: UsuarioGalpaoRow): Galpao | null {
+  const galpao = Array.isArray(row.galpoes) ? row.galpoes[0] : row.galpoes;
+  return mapearGalpao(galpao, row.papel, row.status);
 }
 
 export function usuarioPodeGerenciar(galpao: Pick<Galpao, "papel">): boolean {
   return ehDono(galpao.papel);
+}
+
+export function acessoAprovado(
+  galpao: Pick<Galpao, "statusAcesso">
+): boolean {
+  return galpao.statusAcesso !== "pendente";
 }
 
 export function parseLimiar(valor: string, rotulo: string): number {

@@ -9,10 +9,13 @@ O app é [Expo](https://docs.expo.dev/versions/v54.0.0/) 54 + React Native, com 
 - Cadastro e login com e-mail/senha (Supabase Auth)
 - Perfil do produtor (nome e telefone editáveis; e-mail e CPF fixos)
 - Criar galpão (gera código de convite) ou entrar com código
-- Home com a lista de galpões do usuário
+- Home com a lista de galpões e status Normal/Alerta de cada um
 - Ver quem tem acesso ao galpão (Dono quem criou, Funcionário quem entrou com código)
-- Dono gerencia o galpão: nome, limiares de tensão/corrente, remover funcionário e apagar
+- Dono gerencia o galpão: nome, limiares de tensão/corrente, aprovar/recusar acesso, remover funcionário e apagar
+- Funcionário pede acesso com código (o dono aprova) e pode sair sozinho
+- Sino de notificações ao lado do nome: pedido de acesso abre a tela para aprovar/recusar
 - Detalhe do galpão com cards de status (Normal / Alerta) segundo os limiares do galpão
+- Dashboard do dono com gráficos de tensão, corrente e fonte vs bateria
 - Atualização ao vivo quando chega `INSERT` em `leituras`
 - Histórico das mudanças, filtrado por galpão, data e tipo (energia, tensão, corrente)
 - Proteção de rotas: área privada só com sessão; logado é mandado para a home
@@ -42,7 +45,7 @@ Definidas em `lib/status.ts` (padrão; o dono pode mudar por galpão):
 Telas (app/) → contextos (auth, AuthGate) → lib/ (regras + acesso a dados) → Supabase
 ```
 
-- `lib/database.ts` — perfil, galpões, acessos e leituras
+- `lib/database.ts` — perfil, galpões, acessos, leituras e notificações
 - `lib/historico.ts` — extrai mudanças entre leituras consecutivas e filtra por data/campo
 - `lib/status.ts` — limiares e rótulos
 - `lib/acesso.ts` — papéis Dono / Funcionário
@@ -53,6 +56,8 @@ Telas (app/) → contextos (auth, AuthGate) → lib/ (regras + acesso a dados) �
 - `supabase/alter-leituras.sql` — energia Fonte/Bateria/USB e policy de insert
 - `supabase/listar-acessos.sql` — RPC para listar dono e funcionários de um galpão
 - `supabase/gestao.sql` — perfil, limiares, remover acesso e apagar galpão
+- `supabase/aprovacao.sql` — dono aprova acesso, funcionário sai, RLS de leituras
+- `supabase/notificacoes.sql` — tabela de avisos e notificação ao dono no pedido de acesso
 
 Leituras reais devem vir de um ESP32. Nesta branch há um **simulador no app** (`lib/simulador.ts` + `contexts/simulador.tsx`) que publica leituras nos galpões nomeados `Teste1` e `Teste2`. Ele é temporário e será removido quando o hardware/MQTT estiver no fluxo.
 
@@ -105,7 +110,7 @@ tests/
    - `supabase/extras.sql`
    - `supabase/alter-leituras.sql`
 
-   Se o projeto já existia, rode também `supabase/listar-acessos.sql` e `supabase/gestao.sql`.
+   Se o projeto já existia, rode também `supabase/listar-acessos.sql`, `supabase/gestao.sql`, `supabase/aprovacao.sql` e `supabase/notificacoes.sql`.
 
    Se a lista de acessos do galpão mostrar só quem está logado, rode de novo `supabase/listar-acessos.sql`.
 
@@ -149,4 +154,4 @@ npm run lint
 
 - Remover o simulador de ESP32 do app
 - Ligar o MQTT/ESP32 de verdade (sem senha versionada no git)
-- Revisar RLS de SELECT para um usuário não ler galpão alheio só trocando o id
+- Notificação quando o galpão entrar em alerta

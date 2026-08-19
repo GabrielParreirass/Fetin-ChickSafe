@@ -1,9 +1,17 @@
-import { formatarLinhaAcesso, type AcessoGalpao } from "@/lib/acesso";
+import {
+  ehAcessoPendente,
+  ehDono,
+  formatarLinhaAcesso,
+  type AcessoGalpao,
+} from "@/lib/acesso";
 import {
   apagarGalpao,
+  aprovarAcessoDoGalpao,
   atualizarGalpao,
   listarAcessosDoGalpao,
+  recusarAcessoDoGalpao,
   removerAcessoDoGalpao,
+  sairDoGalpao,
 } from "@/lib/database";
 import { mensagemDeErro } from "@/lib/erros";
 import { parseLimiar, usuarioPodeGerenciar } from "@/lib/galpao";
@@ -24,8 +32,10 @@ import {
 type ModalGestao = "acesso" | "config" | null;
 
 export function useGalpaoGestao(opcoes: {
+  usuarioId?: string;
   aoAtualizar?: (galpao?: Galpao) => Promise<void> | void;
   aoApagar?: () => void;
+  aoSair?: () => void;
 }) {
   const [modal, setModal] = useState<ModalGestao>(null);
   const [galpao, setGalpao] = useState<Galpao | null>(null);
@@ -38,7 +48,11 @@ export function useGalpaoGestao(opcoes: {
   const [aviso, setAviso] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [confirmandoApagar, setConfirmandoApagar] = useState(false);
-  const [pendenteRemover, setPendenteRemover] = useState<string | null>(null);
+  const [pendenteAcao, setPendenteAcao] = useState<string | null>(null);
+
+  const recarregarAcessos = async (galpaoId: string) => {
+    setAcessos(await listarAcessosDoGalpao(galpaoId));
+  };
 
   const fechar = () => {
     setModal(null);
@@ -50,7 +64,7 @@ export function useGalpaoGestao(opcoes: {
     setErro("");
     setAviso("");
     setConfirmandoApagar(false);
-    setPendenteRemover(null);
+    setPendenteAcao(null);
   };
 
   const abrirAcessos = async (alvo: Galpao) => {
@@ -58,7 +72,7 @@ export function useGalpaoGestao(opcoes: {
     setAcessos([]);
     setCarregandoAcesso(true);
     setErro("");
-    setPendenteRemover(null);
+    setPendenteAcao(null);
     setModal("acesso");
     try {
       const lista = await listarAcessosDoGalpao(alvo.id);
@@ -118,12 +132,16 @@ export function useGalpaoGestao(opcoes: {
     }
   };
 
-  const confirmarRemover = async (usuarioId: string) => {
+  const confirmarAcao = async (
+    chave: string,
+    executar: () => Promise<void>,
+    mensagemErro: string
+  ) => {
     if (!galpao) {
       return;
     }
-    if (pendenteRemover !== usuarioId) {
-      setPendenteRemover(usuarioId);
+    if (pendenteAcao !== chave) {
+      setPendenteAcao(chave);
       setConfirmandoApagar(false);
       return;
     }
@@ -131,11 +149,56 @@ export function useGalpaoGestao(opcoes: {
     try {
       setErro("");
       setSalvando(true);
-      await removerAcessoDoGalpao(galpao.id, usuarioId);
-      setPendenteRemover(null);
-      setAcessos(await listarAcessosDoGalpao(galpao.id));
+      await executar();
+      setPendenteAcao(null);
+      await recarregarAcessos(galpao.id);
     } catch (error) {
-      setErro(mensagemDeErro(error, "Não foi possível remover o acesso."));
+      setErro(mensagemDeErro(error, mensagemErro));
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const confirmarRemover = (usuarioId: string) =>
+    confirmarAcao(
+      `remover:${usuarioId}`,
+      () => removerAcessoDoGalpao(galpao!.id, usuarioId),
+      "Não foi possível remover o acesso."
+    );
+
+  const confirmarAprovar = (usuarioId: string) =>
+    confirmarAcao(
+      `aprovar:${usuarioId}`,
+      () => aprovarAcessoDoGalpao(galpao!.id, usuarioId),
+      "Não foi possível aprovar o acesso."
+    );
+
+  const confirmarRecusar = (usuarioId: string) =>
+    confirmarAcao(
+      `recusar:${usuarioId}`,
+      () => recusarAcessoDoGalpao(galpao!.id, usuarioId),
+      "Não foi possível recusar o acesso."
+    );
+
+  const confirmarSair = async () => {
+    if (!galpao) {
+      return;
+    }
+    if (pendenteAcao !== "sair") {
+      setPendenteAcao("sair");
+      setConfirmandoApagar(false);
+      return;
+    }
+
+    try {
+      setErro("");
+      setSalvando(true);
+      await sairDoGalpao(galpao.id);
+      fechar();
+      await opcoes.aoAtualizar?.();
+      opcoes.aoSair?.();
+    } catch (error) {
+      setErro(mensagemDeErro(error, "Não foi possível sair do galpão."));
     } finally {
       setSalvando(false);
     }
@@ -147,7 +210,7 @@ export function useGalpaoGestao(opcoes: {
     }
     if (!confirmandoApagar) {
       setConfirmandoApagar(true);
-      setPendenteRemover(null);
+      setPendenteAcao(null);
       return;
     }
 
@@ -166,6 +229,10 @@ export function useGalpaoGestao(opcoes: {
   };
 
   const podeGerenciar = galpao ? usuarioPodeGerenciar(galpao) : false;
+  const podeSair = Boolean(
+    galpao && opcoes.usuarioId && !ehDono(galpao.papel)
+  );
+  const pedidoPendente = galpao?.statusAcesso === "pendente";
 
   const modais = (
     <>
@@ -192,14 +259,42 @@ export function useGalpaoGestao(opcoes: {
                       <Text style={styles.acessoEmail}>{acesso.email}</Text>
                     ) : null}
                   </View>
-                  {podeGerenciar && acesso.papel !== "dono" ? (
+                  {podeGerenciar && ehAcessoPendente(acesso) ? (
+                    <View style={styles.acessoAcoes}>
+                      <TouchableOpacity
+                        onPress={() => void confirmarAprovar(acesso.usuarioId)}
+                        disabled={salvando}
+                        accessibilityLabel={`Aprovar acesso de ${acesso.nome}`}
+                      >
+                        <Text style={styles.aprovarText}>
+                          {pendenteAcao === `aprovar:${acesso.usuarioId}`
+                            ? "Confirmar"
+                            : "Aprovar"}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => void confirmarRecusar(acesso.usuarioId)}
+                        disabled={salvando}
+                        accessibilityLabel={`Recusar acesso de ${acesso.nome}`}
+                      >
+                        <Text style={styles.removerText}>
+                          {pendenteAcao === `recusar:${acesso.usuarioId}`
+                            ? "Confirmar"
+                            : "Recusar"}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+                  {podeGerenciar &&
+                  acesso.papel !== "dono" &&
+                  !ehAcessoPendente(acesso) ? (
                     <TouchableOpacity
                       onPress={() => void confirmarRemover(acesso.usuarioId)}
                       disabled={salvando}
                       accessibilityLabel={`Remover acesso de ${acesso.nome}`}
                     >
                       <Text style={styles.removerText}>
-                        {pendenteRemover === acesso.usuarioId
+                        {pendenteAcao === `remover:${acesso.usuarioId}`
                           ? "Confirmar"
                           : "Remover"}
                       </Text>
@@ -208,6 +303,23 @@ export function useGalpaoGestao(opcoes: {
                 </View>
               ))
             )}
+            {podeSair ? (
+              <TouchableOpacity
+                onPress={() => void confirmarSair()}
+                disabled={salvando}
+                accessibilityLabel={
+                  pedidoPendente ? "Cancelar pedido de acesso" : "Sair do galpão"
+                }
+              >
+                <Text style={styles.sairText}>
+                  {pendenteAcao === "sair"
+                    ? "Confirmar saída"
+                    : pedidoPendente
+                      ? "Cancelar pedido"
+                      : "Sair do galpão"}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
             {erro && modal === "acesso" ? (
               <Text style={styles.erro}>{erro}</Text>
             ) : null}
@@ -384,6 +496,10 @@ const styles = StyleSheet.create({
   acessoInfo: {
     flex: 1,
   },
+  acessoAcoes: {
+    alignItems: "flex-end",
+    gap: 6,
+  },
   acessoNome: {
     fontSize: 16,
     fontWeight: "600",
@@ -428,6 +544,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     textDecorationLine: "underline",
+  },
+  aprovarText: {
+    color: "#2E7D32",
+    fontSize: 14,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
+  sairText: {
+    color: "#8B0000",
+    textAlign: "center",
+    fontSize: 15,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+    marginTop: 8,
   },
   primaryButton: {
     backgroundColor: "#333",

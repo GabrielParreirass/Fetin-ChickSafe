@@ -21,6 +21,7 @@ export default function RootLayout() {
           <Stack.Screen name="(private)/home/page" />
           <Stack.Screen name="(private)/perfil/page" />
           <Stack.Screen name="(private)/galpao/[id]/page" />
+          <Stack.Screen name="(private)/galpao/[id]/dashboard/page" />
           <Stack.Screen name="(private)/historico/page" />
           <Stack.Screen name="+not-found" />
         </Stack>

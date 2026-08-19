@@ -8,6 +8,8 @@ export type Usuario = {
   telefone: string;
 };
 
+export type StatusAcesso = "pendente" | "aprovado";
+
 export type Galpao = {
   id: string;
   nome: string;
@@ -15,6 +17,7 @@ export type Galpao = {
   limiarTensao: number;
   limiarCorrente: number;
   papel: string;
+  statusAcesso: StatusAcesso;
 };
 
 export type GalpaoRow = {
@@ -40,5 +43,6 @@ export type Leitura = {
 export type UsuarioGalpaoRow = {
   galpao_id: string;
   papel?: string;
+  status?: string;
   galpoes: GalpaoRow | GalpaoRow[] | null;
 };

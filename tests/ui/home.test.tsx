@@ -4,17 +4,24 @@ import { router } from "expo-router";
 import { useAuth } from "@/contexts/auth";
 import {
   apagarGalpao,
+  aprovarAcessoDoGalpao,
   atualizarGalpao,
+  buscarLeiturasAprovadas,
   criarGalpao,
   entrarGalpaoPorCodigo,
   listarAcessosDoGalpao,
   listarGalpoesDoUsuario,
+  listarNotificacoes,
   removerAcessoDoGalpao,
+  sairDoGalpao,
 } from "@/lib/database";
 import HomeLogadaScreen from "@/app/(private)/home/page";
 import {
   galpaoNorte,
   galpaoNorteFuncionario,
+  galpaoNortePendente,
+  leituraAlerta,
+  leituraNormal,
   userAuthPadrao,
   usuarioPadrao,
 } from "./helpers/fakes";
@@ -58,6 +65,22 @@ jest.mock("@/lib/database", () => ({
   atualizarGalpao: jest.fn(),
   removerAcessoDoGalpao: jest.fn(),
   apagarGalpao: jest.fn(),
+  buscarLeiturasAprovadas: jest.fn(),
+  aprovarAcessoDoGalpao: jest.fn(),
+  recusarAcessoDoGalpao: jest.fn(),
+  sairDoGalpao: jest.fn(),
+  listarNotificacoes: jest.fn(),
+  marcarNotificacaoLida: jest.fn(),
+}));
+
+jest.mock("@/lib/supabase", () => ({
+  supabase: {
+    channel: jest.fn(() => ({
+      on: jest.fn().mockReturnThis(),
+      subscribe: jest.fn(),
+    })),
+    removeChannel: jest.fn(),
+  },
 }));
 
 jest.mock("@expo/vector-icons/MaterialIcons", () => {
@@ -83,6 +106,8 @@ describe("HomeLogadaScreen", () => {
     });
     (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([]);
     (listarAcessosDoGalpao as jest.Mock).mockResolvedValue([]);
+    (buscarLeiturasAprovadas as jest.Mock).mockResolvedValue({});
+    (listarNotificacoes as jest.Mock).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -154,6 +179,10 @@ describe("HomeLogadaScreen", () => {
 
     await waitFor(() => {
       expect(entrarGalpaoPorCodigo).toHaveBeenCalledWith("abc123");
+      expect(Alert.alert).toHaveBeenCalledWith(
+        "Pedido enviado",
+        "O dono precisa aprovar o acesso a este galpão."
+      );
       expect(screen.getByText("Galpão Norte")).toBeOnTheScreen();
     });
   });
@@ -469,5 +498,127 @@ describe("HomeLogadaScreen", () => {
     expect(screen.queryByText("Limiar de tensão (V)")).toBeNull();
     expect(screen.queryByText("Salvar alterações")).toBeNull();
     expect(screen.queryByText("Apagar galpão")).toBeNull();
+  });
+
+  it("mostra status Normal e o resumo da última leitura", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([galpaoNorte]);
+    (buscarLeiturasAprovadas as jest.Mock).mockResolvedValue({
+      "galpao-1": leituraNormal,
+    });
+    render(<HomeLogadaScreen />);
+
+    expect(await screen.findByText("Normal")).toBeOnTheScreen();
+    expect(screen.getByText("Fonte · 4.2 V · 80 mA")).toBeOnTheScreen();
+  });
+
+  it("mostra status Alerta quando a leitura está ruim", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([galpaoNorte]);
+    (buscarLeiturasAprovadas as jest.Mock).mockResolvedValue({
+      "galpao-1": leituraAlerta,
+    });
+    render(<HomeLogadaScreen />);
+
+    expect(await screen.findByText("Alerta")).toBeOnTheScreen();
+    expect(screen.getByText("Bateria · 2.5 V · 20 mA")).toBeOnTheScreen();
+  });
+
+  it("não abre o detalhe enquanto o acesso está pendente", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([
+      galpaoNortePendente,
+    ]);
+    render(<HomeLogadaScreen />);
+    expect(await screen.findByText("Aguardando aprovação")).toBeOnTheScreen();
+    expect(screen.queryByLabelText("Configurar Galpão Norte")).toBeNull();
+
+    fireEvent.press(screen.getByText("Galpão Norte"));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      "Aguardando aprovação",
+      "O dono ainda precisa aprovar o seu acesso a este galpão."
+    );
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("deixa o dono aprovar pedido pendente", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([galpaoNorte]);
+    (listarAcessosDoGalpao as jest.Mock)
+      .mockResolvedValueOnce([
+        {
+          usuarioId: "user-1",
+          nome: "Maria Silva",
+          email: "maria@chicksafe.app",
+          papel: "dono",
+          status: "aprovado",
+        },
+        {
+          usuarioId: "user-2",
+          nome: "Bruno",
+          email: "bruno@chicksafe.app",
+          papel: "operador",
+          status: "pendente",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          usuarioId: "user-1",
+          nome: "Maria Silva",
+          email: "maria@chicksafe.app",
+          papel: "dono",
+          status: "aprovado",
+        },
+        {
+          usuarioId: "user-2",
+          nome: "Bruno",
+          email: "bruno@chicksafe.app",
+          papel: "operador",
+          status: "aprovado",
+        },
+      ]);
+    (aprovarAcessoDoGalpao as jest.Mock).mockResolvedValue(undefined);
+    render(<HomeLogadaScreen />);
+    await screen.findByText("Galpão Norte");
+    fireEvent.press(screen.getByLabelText("Ver acesso de Galpão Norte"));
+    await screen.findByText("Bruno — Funcionário (pendente)");
+
+    fireEvent.press(screen.getByLabelText("Aprovar acesso de Bruno"));
+    fireEvent.press(screen.getByLabelText("Aprovar acesso de Bruno"));
+
+    await waitFor(() => {
+      expect(aprovarAcessoDoGalpao).toHaveBeenCalledWith("galpao-1", "user-2");
+    });
+  });
+
+  it("deixa o funcionário sair do galpão", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([
+      galpaoNorteFuncionario,
+    ]);
+    (listarAcessosDoGalpao as jest.Mock).mockResolvedValue([
+      {
+        usuarioId: "user-9",
+        nome: "Dono",
+        email: "dono@chicksafe.app",
+        papel: "dono",
+        status: "aprovado",
+      },
+      {
+        usuarioId: "user-1",
+        nome: "Maria Silva",
+        email: "maria@chicksafe.app",
+        papel: "operador",
+        status: "aprovado",
+      },
+    ]);
+    (sairDoGalpao as jest.Mock).mockResolvedValue(undefined);
+    render(<HomeLogadaScreen />);
+    await screen.findByText("Galpão Norte");
+    fireEvent.press(screen.getByLabelText("Ver acesso de Galpão Norte"));
+    await screen.findByText("Sair do galpão");
+
+    fireEvent.press(screen.getByLabelText("Sair do galpão"));
+    fireEvent.press(screen.getByLabelText("Sair do galpão"));
+
+    await waitFor(() => {
+      expect(sairDoGalpao).toHaveBeenCalledWith("galpao-1");
+    });
   });
 });
