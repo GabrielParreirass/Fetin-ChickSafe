@@ -1,5 +1,4 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react-native";
-import { Alert } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "@/contexts/auth";
 import CadastroScreen from "@/app/(auth)/cadastro/page";
@@ -40,27 +39,19 @@ function pressionarCriarConta() {
 describe("CadastroScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(Alert, "alert").mockImplementation(() => {});
     (useAuth as jest.Mock).mockReturnValue({ signUp });
   });
 
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
-  it("alerta quando faltam campos obrigatórios", () => {
+  it("mostra erro quando faltam campos obrigatórios", () => {
     render(<CadastroScreen />);
 
     pressionarCriarConta();
 
-    expect(Alert.alert).toHaveBeenCalledWith(
-      "Cadastro",
-      "Preencha nome, e-mail, telefone e senha."
-    );
+    expect(screen.getByText("Preencha nome, e-mail, telefone e senha.")).toBeOnTheScreen();
     expect(signUp).not.toHaveBeenCalled();
   });
 
-  it("alerta quando o CPF não tem 11 dígitos", () => {
+  it("mostra erro quando o CPF não tem 11 dígitos", () => {
     render(<CadastroScreen />);
 
     fireEvent.changeText(screen.getByPlaceholderText("Nome completo"), "Maria");
@@ -70,13 +61,10 @@ describe("CadastroScreen", () => {
     fireEvent.changeText(screen.getByPlaceholderText("Senha"), "senha123");
     pressionarCriarConta();
 
-    expect(Alert.alert).toHaveBeenCalledWith(
-      "Cadastro",
-      "Informe um CPF com 11 dígitos."
-    );
+    expect(screen.getByText("Informe um CPF com 11 dígitos.")).toBeOnTheScreen();
   });
 
-  it("alerta quando a senha é curta", () => {
+  it("mostra erro quando a senha é curta", () => {
     render(<CadastroScreen />);
 
     fireEvent.changeText(screen.getByPlaceholderText("Nome completo"), "Maria");
@@ -87,13 +75,12 @@ describe("CadastroScreen", () => {
     fireEvent.changeText(screen.getByPlaceholderText("Confirmar senha"), "123");
     pressionarCriarConta();
 
-    expect(Alert.alert).toHaveBeenCalledWith(
-      "Cadastro",
-      "A senha deve ter pelo menos 6 caracteres."
-    );
+    expect(
+      screen.getByText("A senha deve ter pelo menos 6 caracteres.")
+    ).toBeOnTheScreen();
   });
 
-  it("alerta quando as senhas não coincidem", () => {
+  it("mostra erro quando as senhas não coincidem", () => {
     render(<CadastroScreen />);
 
     fireEvent.changeText(screen.getByPlaceholderText("Nome completo"), "Maria");
@@ -104,7 +91,7 @@ describe("CadastroScreen", () => {
     fireEvent.changeText(screen.getByPlaceholderText("Confirmar senha"), "outra");
     pressionarCriarConta();
 
-    expect(Alert.alert).toHaveBeenCalledWith("Cadastro", "As senhas não coincidem.");
+    expect(screen.getByText("As senhas não coincidem.")).toBeOnTheScreen();
   });
 
   it("envia o cadastro com CPF só com dígitos", async () => {
@@ -129,19 +116,18 @@ describe("CadastroScreen", () => {
     });
   });
 
-  it("avisa para confirmar e-mail e volta ao login", async () => {
+  it("avisa para confirmar e-mail na própria tela", async () => {
     signUp.mockResolvedValue({ needsConfirmation: true });
     render(<CadastroScreen />);
     preencherCadastroValido();
     pressionarCriarConta();
 
-    await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
-        "Confirme seu e-mail",
+    expect(
+      await screen.findByText(
         "Sua conta foi criada. Confirme o e-mail e depois faça login."
-      );
-      expect(router.navigate).toHaveBeenCalledWith("/(auth)/login/page");
-    });
+      )
+    ).toBeOnTheScreen();
+    expect(router.navigate).not.toHaveBeenCalled();
   });
 
   it("navega para o login quando já tem conta", () => {
@@ -158,11 +144,8 @@ describe("CadastroScreen", () => {
     preencherCadastroValido();
     pressionarCriarConta();
 
-    await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
-        "Cadastro",
-        "User already registered"
-      );
-    });
+    expect(
+      await screen.findByText("Este e-mail já está cadastrado.")
+    ).toBeOnTheScreen();
   });
 });

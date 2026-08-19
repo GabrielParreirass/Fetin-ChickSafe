@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/auth";
+import { mensagemDeErro } from "@/lib/erros";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -17,20 +18,20 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState("");
 
   const handleLogin = async () => {
     if (!email.trim() || !senha) {
-      Alert.alert("Login", "Preencha e-mail e senha.");
+      setErro("Preencha e-mail e senha.");
       return;
     }
 
     try {
+      setErro("");
       setEnviando(true);
       await signIn(email, senha);
     } catch (error) {
-      const mensagem =
-        error instanceof Error ? error.message : "Não foi possível entrar.";
-      Alert.alert("Email ou senha incorretos", mensagem);
+      setErro(mensagemDeErro(error, "Não foi possível entrar."));
     } finally {
       setEnviando(false);
     }
@@ -50,7 +51,10 @@ export default function LoginScreen() {
         autoCapitalize="none"
         autoComplete="email"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(valor) => {
+          setEmail(valor);
+          setErro("");
+        }}
       />
 
       <TextInput
@@ -59,8 +63,13 @@ export default function LoginScreen() {
         placeholderTextColor="#555"
         secureTextEntry
         value={senha}
-        onChangeText={setSenha}
+        onChangeText={(valor) => {
+          setSenha(valor);
+          setErro("");
+        }}
       />
+
+      {erro ? <Text style={styles.erro}>{erro}</Text> : null}
 
       <TouchableOpacity
         style={[styles.button, enviando && styles.buttonDisabled]}
@@ -115,6 +124,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
     color: "#333",
+  },
+  erro: {
+    width: "100%",
+    color: "#8B0000",
+    fontSize: 15,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 16,
   },
   button: {
     backgroundColor: "#333",

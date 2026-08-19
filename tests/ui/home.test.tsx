@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/auth";
 import {
   criarGalpao,
   entrarGalpaoPorCodigo,
+  listarAcessosDoGalpao,
   listarGalpoesDoUsuario,
 } from "@/lib/database";
 import HomeLogadaScreen from "@/app/(private)/home/page";
@@ -45,6 +46,7 @@ jest.mock("@/lib/database", () => ({
   listarGalpoesDoUsuario: jest.fn(),
   entrarGalpaoPorCodigo: jest.fn(),
   criarGalpao: jest.fn(),
+  listarAcessosDoGalpao: jest.fn(),
 }));
 
 jest.mock("@expo/vector-icons/MaterialIcons", () => {
@@ -69,6 +71,7 @@ describe("HomeLogadaScreen", () => {
       signOut,
     });
     (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([]);
+    (listarAcessosDoGalpao as jest.Mock).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -243,6 +246,84 @@ describe("HomeLogadaScreen", () => {
       expect(Alert.alert).toHaveBeenCalledWith(
         "Galpão",
         "Código de galpão inválido"
+      );
+    });
+  });
+
+  it("abre a lista de acesso com dono e funcionário", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([galpaoNorte]);
+    (listarAcessosDoGalpao as jest.Mock).mockResolvedValue([
+      {
+        usuarioId: "user-1",
+        nome: "Maria Silva",
+        email: "maria@chicksafe.app",
+        papel: "dono",
+      },
+      {
+        usuarioId: "user-2",
+        nome: "Bruno",
+        email: "bruno@chicksafe.app",
+        papel: "operador",
+      },
+    ]);
+    render(<HomeLogadaScreen />);
+    await screen.findByText("Galpão Norte");
+
+    fireEvent.press(screen.getByLabelText("Ver acesso de Galpão Norte"));
+
+    expect(await screen.findByText("Acesso — Galpão Norte")).toBeOnTheScreen();
+    expect(listarAcessosDoGalpao).toHaveBeenCalledWith("galpao-1");
+    expect(screen.getByText("Maria Silva — Dono")).toBeOnTheScreen();
+    expect(screen.getByText("Bruno — Funcionário")).toBeOnTheScreen();
+  });
+
+  it("não abre o detalhe do galpão ao tocar em ver acesso", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([galpaoNorte]);
+    render(<HomeLogadaScreen />);
+    await screen.findByText("Galpão Norte");
+
+    fireEvent.press(screen.getByLabelText("Ver acesso de Galpão Norte"));
+
+    expect(await screen.findByText("Acesso — Galpão Norte")).toBeOnTheScreen();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("fecha o modal de acesso", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([galpaoNorte]);
+    (listarAcessosDoGalpao as jest.Mock).mockResolvedValue([
+      {
+        usuarioId: "user-1",
+        nome: "Maria Silva",
+        email: "maria@chicksafe.app",
+        papel: "dono",
+      },
+    ]);
+    render(<HomeLogadaScreen />);
+    await screen.findByText("Galpão Norte");
+    fireEvent.press(screen.getByLabelText("Ver acesso de Galpão Norte"));
+    await screen.findByText("Acesso — Galpão Norte");
+
+    fireEvent.press(screen.getByText("Fechar"));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Acesso — Galpão Norte")).toBeNull();
+    });
+  });
+
+  it("alerta quando a lista de acesso falha", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([galpaoNorte]);
+    (listarAcessosDoGalpao as jest.Mock).mockRejectedValue(
+      new Error("Sem acesso a este galpão")
+    );
+    render(<HomeLogadaScreen />);
+    await screen.findByText("Galpão Norte");
+
+    fireEvent.press(screen.getByLabelText("Ver acesso de Galpão Norte"));
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        "Acesso",
+        "Sem acesso a este galpão"
       );
     });
   });

@@ -1,8 +1,10 @@
 import { useAuth } from "@/contexts/auth";
 import { useSimulador } from "@/contexts/simulador";
+import { formatarLinhaAcesso, type AcessoGalpao } from "@/lib/acesso";
 import {
   criarGalpao,
   entrarGalpaoPorCodigo,
+  listarAcessosDoGalpao,
   listarGalpoesDoUsuario,
 } from "@/lib/database";
 import type { Galpao } from "@/lib/types";
@@ -27,10 +29,13 @@ export default function HomeLogadaScreen() {
   const { ativo, ultima, iniciar, parar } = useSimulador();
   const [galpoes, setGalpoes] = useState<Galpao[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [modal, setModal] = useState<"entrar" | "criar" | null>(null);
+  const [modal, setModal] = useState<"entrar" | "criar" | "acesso" | null>(null);
   const [codigo, setCodigo] = useState("");
   const [nomeGalpao, setNomeGalpao] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [galpaoAcesso, setGalpaoAcesso] = useState<Galpao | null>(null);
+  const [acessos, setAcessos] = useState<AcessoGalpao[]>([]);
+  const [carregandoAcesso, setCarregandoAcesso] = useState(false);
 
   const primeiroNome = (usuario?.nome ?? "produtor").split(" ")[0];
 
@@ -66,6 +71,29 @@ export default function HomeLogadaScreen() {
     setModal(null);
     setCodigo("");
     setNomeGalpao("");
+    setGalpaoAcesso(null);
+    setAcessos([]);
+  };
+
+  const abrirAcessos = async (galpao: Galpao) => {
+    setGalpaoAcesso(galpao);
+    setAcessos([]);
+    setCarregandoAcesso(true);
+    setModal("acesso");
+    try {
+      const lista = await listarAcessosDoGalpao(galpao.id);
+      setAcessos(lista);
+    } catch (error) {
+      const mensagem =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível carregar quem tem acesso.";
+      Alert.alert("Acesso", mensagem);
+      setModal(null);
+      setGalpaoAcesso(null);
+    } finally {
+      setCarregandoAcesso(false);
+    }
   };
 
   const confirmarAcao = async () => {
@@ -154,16 +182,25 @@ export default function HomeLogadaScreen() {
               </Text>
             }
             renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.galpaoCard}
-                onPress={() => abrirGalpao(item)}
-              >
-                <MaterialIcons name="home" size={28} color="#333" />
-                <Text style={styles.galpaoNome}>{item.nome}</Text>
-                {item.codigo ? (
-                  <Text style={styles.galpaoCodigo}>{item.codigo}</Text>
-                ) : null}
-              </TouchableOpacity>
+              <View style={styles.galpaoCard}>
+                <TouchableOpacity
+                  style={styles.galpaoCardMain}
+                  onPress={() => abrirGalpao(item)}
+                >
+                  <MaterialIcons name="home" size={28} color="#333" />
+                  <Text style={styles.galpaoNome}>{item.nome}</Text>
+                  {item.codigo ? (
+                    <Text style={styles.galpaoCodigo}>{item.codigo}</Text>
+                  ) : null}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.acessoButton}
+                  onPress={() => void abrirAcessos(item)}
+                  accessibilityLabel={`Ver acesso de ${item.nome}`}
+                >
+                  <MaterialIcons name="group" size={20} color="#333" />
+                </TouchableOpacity>
+              </View>
             )}
           />
         )}
@@ -200,7 +237,44 @@ export default function HomeLogadaScreen() {
         </View>
       </View>
 
-      <Modal visible={modal != null} transparent animationType="fade">
+      <Modal visible={modal === "acesso"} transparent animationType="fade">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              Acesso — {galpaoAcesso?.nome ?? "galpão"}
+            </Text>
+            {carregandoAcesso ? (
+              <ActivityIndicator color="#333" />
+            ) : acessos.length === 0 ? (
+              <Text style={styles.emptyAcessoText}>
+                Ninguém com acesso neste galpão.
+              </Text>
+            ) : (
+              acessos.map((acesso) => (
+                <View key={acesso.usuarioId} style={styles.acessoItem}>
+                  <View style={styles.acessoInfo}>
+                    <Text style={styles.acessoNome}>
+                      {formatarLinhaAcesso(acesso)}
+                    </Text>
+                    {acesso.email ? (
+                      <Text style={styles.acessoEmail}>{acesso.email}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              ))
+            )}
+            <TouchableOpacity onPress={fecharModal}>
+              <Text style={styles.cancelText}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={modal === "entrar" || modal === "criar"}
+        transparent
+        animationType="fade"
+      >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
@@ -296,6 +370,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  galpaoCardMain: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+  },
+  acessoButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    padding: 4,
+  },
   galpaoNome: {
     fontSize: 13,
     fontWeight: "bold",
@@ -379,5 +464,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textDecorationLine: "underline",
     marginTop: 4,
+  },
+  emptyAcessoText: {
+    fontSize: 15,
+    color: "#555",
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  acessoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  acessoInfo: {
+    flex: 1,
+  },
+  acessoNome: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  acessoEmail: {
+    fontSize: 13,
+    color: "#777",
+    marginTop: 2,
+  },
+  acessoPapel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
   },
 });

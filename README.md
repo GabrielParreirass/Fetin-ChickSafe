@@ -10,6 +10,7 @@ O app é [Expo](https://docs.expo.dev/versions/v54.0.0/) 54 + React Native, com 
 - Perfil do produtor (nome, CPF, telefone) na tabela `usuarios`
 - Criar galpão (gera código de convite) ou entrar com código
 - Home com a lista de galpões do usuário
+- Ver quem tem acesso ao galpão (Dono quem criou, Funcionário quem entrou com código)
 - Detalhe do galpão com cards de status (Normal / Alerta)
 - Atualização ao vivo quando chega `INSERT` em `leituras`
 - Histórico das mudanças (energia, tensão, corrente), geral ou filtrado por galpão
@@ -40,13 +41,15 @@ Definidas em `lib/status.ts`:
 Telas (app/) → contextos (auth, AuthGate) → lib/ (regras + acesso a dados) → Supabase
 ```
 
-- `lib/database.ts` — perfil, galpões e leituras
+- `lib/database.ts` — perfil, galpões, acessos e leituras
 - `lib/historico.ts` — extrai mudanças entre leituras consecutivas
 - `lib/status.ts` — limiares e rótulos
+- `lib/acesso.ts` — papéis Dono / Funcionário
 - `contexts/auth.tsx` — sessão, login, cadastro, logout
 - `contexts/auth-gate.tsx` — redireciona público ↔ privado
-- `supabase/extras.sql` — grants e RPCs `entrar_galpao` / `criar_galpao`
+- `supabase/extras.sql` — grants e RPCs `entrar_galpao` / `criar_galpao` / `listar_acessos_galpao`
 - `supabase/alter-leituras.sql` — energia Fonte/Bateria/USB e policy de insert
+- `supabase/listar-acessos.sql` — RPC para listar dono e funcionários de um galpão
 
 Leituras reais devem vir de um ESP32. Nesta branch há um **simulador no app** (`lib/simulador.ts` + `contexts/simulador.tsx`) que publica leituras nos galpões nomeados `Teste1` e `Teste2`. Ele é temporário e será removido quando o hardware/MQTT estiver no fluxo.
 
@@ -97,6 +100,8 @@ tests/
 
    - `supabase/extras.sql`
    - `supabase/alter-leituras.sql`
+
+   Se a lista de acessos do galpão mostrar só quem está logado, rode de novo `supabase/listar-acessos.sql` (a RPC `listar_acessos_galpao` precisa existir no banco).
 
 ## Como rodar
 

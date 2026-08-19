@@ -1,3 +1,4 @@
+import { mapearAcessoRow, ordenarAcessos, type AcessoGalpao } from "@/lib/acesso";
 import { supabase } from "@/lib/supabase";
 import type { Galpao, Leitura, Usuario, UsuarioGalpaoRow } from "@/lib/types";
 import type { User } from "@supabase/supabase-js";
@@ -116,6 +117,43 @@ export async function criarGalpao(nome: string): Promise<Galpao> {
   }
 
   return data as Galpao;
+}
+
+export async function listarAcessosDoGalpao(
+  galpaoId: string
+): Promise<AcessoGalpao[]> {
+  const { data, error } = await supabase.rpc("listar_acessos_galpao", {
+    p_galpao_id: galpaoId,
+  });
+
+  if (!error) {
+    return ordenarAcessos(
+      (data ?? []).map(
+        (row: {
+          usuario_id: string;
+          nome: string | null;
+          email: string | null;
+          papel: string;
+        }) => ({
+          usuarioId: row.usuario_id,
+          nome: row.nome?.trim() || "Usuário",
+          email: row.email ?? "",
+          papel: row.papel,
+        })
+      )
+    );
+  }
+
+  const fallback = await supabase
+    .from("usuario_galpoes")
+    .select("papel, usuario_id, usuarios:usuario_id (id, nome, email)")
+    .eq("galpao_id", galpaoId);
+
+  if (fallback.error) {
+    throw fallback.error;
+  }
+
+  return ordenarAcessos((fallback.data ?? []).map(mapearAcessoRow));
 }
 
 export async function buscarUltimaLeitura(

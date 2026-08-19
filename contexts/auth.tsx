@@ -113,6 +113,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
       }
 
+      if (
+        data.user &&
+        Array.isArray(data.user.identities) &&
+        data.user.identities.length === 0
+      ) {
+        throw new Error("Este e-mail já está cadastrado.");
+      }
+
       if (!data.session || !data.user) {
         return { needsConfirmation: true };
       }

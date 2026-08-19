@@ -268,6 +268,25 @@ describe("AuthProvider", () => {
     expect(await screen.findByText("erro:User already registered")).toBeOnTheScreen();
   });
 
+  it("trata identities vazio como e-mail já cadastrado", async () => {
+    (supabase.auth.signUp as jest.Mock).mockResolvedValue({
+      data: {
+        session: null,
+        user: { ...USER, identities: [] },
+      },
+      error: null,
+    });
+    renderAuth();
+    await screen.findByText("loading:nao");
+
+    fireEvent.press(screen.getByText("cadastrar"));
+
+    expect(
+      await screen.findByText("erro:Este e-mail já está cadastrado.")
+    ).toBeOnTheScreen();
+    expect(garantirPerfil).not.toHaveBeenCalled();
+  });
+
   it("limpa o perfil no signOut", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue({
       data: { session: SESSION },

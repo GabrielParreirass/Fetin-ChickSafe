@@ -39,12 +39,12 @@ describe("LoginScreen", () => {
     expect(screen.getByText("Entrar")).toBeOnTheScreen();
   });
 
-  it("alerta quando e-mail ou senha estão vazios", () => {
+  it("mostra erro na tela quando e-mail ou senha estão vazios", () => {
     render(<LoginScreen />);
 
     fireEvent.press(screen.getByText("Entrar"));
 
-    expect(Alert.alert).toHaveBeenCalledWith("Login", "Preencha e-mail e senha.");
+    expect(screen.getByText("Preencha e-mail e senha.")).toBeOnTheScreen();
     expect(signIn).not.toHaveBeenCalled();
   });
 
@@ -61,7 +61,7 @@ describe("LoginScreen", () => {
     });
   });
 
-  it("mostra alerta quando o login falha", async () => {
+  it("mostra erro na tela quando o login falha", async () => {
     signIn.mockRejectedValue(new Error("Invalid login credentials"));
     render(<LoginScreen />);
 
@@ -69,12 +69,9 @@ describe("LoginScreen", () => {
     fireEvent.changeText(screen.getByPlaceholderText("Senha"), "errada");
     fireEvent.press(screen.getByText("Entrar"));
 
-    await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
-        "Email ou senha incorretos",
-        "Invalid login credentials"
-      );
-    });
+    expect(
+      await screen.findByText("E-mail ou senha incorretos.")
+    ).toBeOnTheScreen();
   });
 
   it("navega para o cadastro", () => {
