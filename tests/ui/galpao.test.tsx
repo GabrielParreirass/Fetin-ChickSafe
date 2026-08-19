@@ -2,11 +2,12 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react-
 import { Alert } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/contexts/auth";
-import { buscarUltimaLeitura, listarAcessosDoGalpao, listarGalpoesDoUsuario } from "@/lib/database";
+import { buscarUltimaLeitura, listarAcessosDoGalpao, listarGalpoesDoUsuario, listarNotificacoes } from "@/lib/database";
 import { supabase } from "@/lib/supabase";
 import GalpaoDetalheScreen from "@/app/(private)/galpao/[id]/page";
 import {
   galpaoNorte,
+  galpaoNorteFuncionario,
   galpaoSul,
   leituraAlerta,
   leituraNormal,
@@ -14,15 +15,24 @@ import {
   usuarioPadrao,
 } from "./helpers/fakes";
 
-jest.mock("expo-router", () => ({
-  router: {
-    navigate: jest.fn(),
-    push: jest.fn(),
-    back: jest.fn(),
-    replace: jest.fn(),
-  },
-  useLocalSearchParams: jest.fn(),
-}));
+jest.mock("expo-router", () => {
+  const React = require("react");
+  return {
+    router: {
+      navigate: jest.fn(),
+      push: jest.fn(),
+      back: jest.fn(),
+      replace: jest.fn(),
+    },
+    useLocalSearchParams: jest.fn(),
+    useFocusEffect: (callback: () => void | (() => void)) => {
+      React.useEffect(() => {
+        const cleanup = callback();
+        return typeof cleanup === "function" ? cleanup : undefined;
+      }, [callback]);
+    },
+  };
+});
 
 jest.mock("@/contexts/auth", () => ({
   useAuth: jest.fn(),
@@ -35,6 +45,11 @@ jest.mock("@/lib/database", () => ({
   atualizarGalpao: jest.fn(),
   removerAcessoDoGalpao: jest.fn(),
   apagarGalpao: jest.fn(),
+  aprovarAcessoDoGalpao: jest.fn(),
+  recusarAcessoDoGalpao: jest.fn(),
+  sairDoGalpao: jest.fn(),
+  listarNotificacoes: jest.fn(),
+  marcarNotificacaoLida: jest.fn(),
 }));
 
 jest.mock("@/lib/supabase", () => ({
@@ -63,8 +78,10 @@ describe("GalpaoDetalheScreen", () => {
     leituraInsert = undefined;
     (supabase.channel as jest.Mock).mockImplementation(() => {
       const channel = {
-        on: jest.fn((_evento, _filtro, callback) => {
-          leituraInsert = callback;
+        on: jest.fn((_evento, filtro, callback) => {
+          if (filtro?.table === "leituras") {
+            leituraInsert = callback;
+          }
           return channel;
         }),
         subscribe: jest.fn(),
@@ -81,6 +98,7 @@ describe("GalpaoDetalheScreen", () => {
       galpaoSul,
     ]);
     (listarAcessosDoGalpao as jest.Mock).mockResolvedValue([]);
+    (listarNotificacoes as jest.Mock).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -220,5 +238,49 @@ describe("GalpaoDetalheScreen", () => {
       await screen.findByText("Configurações — Galpão Norte")
     ).toBeOnTheScreen();
     expect(screen.getByText("Limiar de tensão (V)")).toBeOnTheScreen();
+  });
+
+  it("mostra o dashboard só para o dono", async () => {
+    (buscarUltimaLeitura as jest.Mock).mockResolvedValue(leituraNormal);
+    render(<GalpaoDetalheScreen />);
+    await screen.findByText("Fonte");
+
+    fireEvent.press(screen.getByLabelText("Abrir dashboard"));
+
+    expect(router.push).toHaveBeenCalledWith(
+      "/(private)/galpao/galpao-1/dashboard/page"
+    );
+  });
+
+  it("esconde o dashboard do funcionário", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([
+      galpaoNorteFuncionario,
+    ]);
+    (buscarUltimaLeitura as jest.Mock).mockResolvedValue(leituraNormal);
+    render(<GalpaoDetalheScreen />);
+    await screen.findByText("Fonte");
+
+    expect(screen.queryByLabelText("Abrir dashboard")).toBeNull();
+  });
+
+  it("abre o acesso quando a notificação manda o parâmetro", async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      id: "galpao-1",
+      acesso: "1",
+    });
+    (buscarUltimaLeitura as jest.Mock).mockResolvedValue(leituraNormal);
+    (listarAcessosDoGalpao as jest.Mock).mockResolvedValue([
+      {
+        usuarioId: "user-1",
+        nome: "Maria Silva",
+        email: "maria@chicksafe.app",
+        papel: "dono",
+        status: "aprovado",
+      },
+    ]);
+    render(<GalpaoDetalheScreen />);
+
+    expect(await screen.findByText("Acesso — Galpão Norte")).toBeOnTheScreen();
+    expect(listarAcessosDoGalpao).toHaveBeenCalledWith("galpao-1");
   });
 });

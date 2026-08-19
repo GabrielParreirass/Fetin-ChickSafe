@@ -1,5 +1,6 @@
-import { mapearAcessoRow, ordenarAcessos, type AcessoGalpao } from "@/lib/acesso";
-import { mapearGalpao } from "@/lib/galpao";
+import { mapearAcessoRow, ordenarAcessos, statusAcessoDe, type AcessoGalpao } from "@/lib/acesso";
+import { acessoAprovado, mapearGalpao, mapearVinculoGalpao } from "@/lib/galpao";
+import { mapearNotificacao, type Notificacao } from "@/lib/notificacoes";
 import { supabase } from "@/lib/supabase";
 import type { Galpao, GalpaoRow, Leitura, Usuario, UsuarioGalpaoRow } from "@/lib/types";
 import type { User } from "@supabase/supabase-js";
@@ -17,8 +18,7 @@ export function formatarCpf(cpf: string): string {
 }
 
 function unwrapGalpao(row: UsuarioGalpaoRow): Galpao | null {
-  const galpao = Array.isArray(row.galpoes) ? row.galpoes[0] : row.galpoes;
-  return mapearGalpao(galpao, row.papel);
+  return mapearVinculoGalpao(row);
 }
 
 export async function buscarUsuario(userId: string): Promise<Usuario | null> {
@@ -122,7 +122,7 @@ export async function listarGalpoesDoUsuario(userId: string): Promise<Galpao[]> 
   const { data, error } = await supabase
     .from("usuario_galpoes")
     .select(
-      "papel, galpao_id, galpoes:galpao_id (id, nome, codigo, limiar_tensao, limiar_corrente)"
+      "papel, status, galpao_id, galpoes:galpao_id (id, nome, codigo, limiar_tensao, limiar_corrente)"
     )
     .eq("usuario_id", userId);
 
@@ -226,11 +226,13 @@ export async function listarAcessosDoGalpao(
           nome: string | null;
           email: string | null;
           papel: string;
+          status?: string;
         }) => ({
           usuarioId: row.usuario_id,
           nome: row.nome?.trim() || "Usuário",
           email: row.email ?? "",
           papel: row.papel,
+          status: statusAcessoDe(row.status),
         })
       )
     );
@@ -238,7 +240,7 @@ export async function listarAcessosDoGalpao(
 
   const fallback = await supabase
     .from("usuario_galpoes")
-    .select("papel, usuario_id, usuarios:usuario_id (id, nome, email)")
+    .select("papel, status, usuario_id, usuarios:usuario_id (id, nome, email)")
     .eq("galpao_id", galpaoId);
 
   if (fallback.error) {
@@ -246,6 +248,62 @@ export async function listarAcessosDoGalpao(
   }
 
   return ordenarAcessos((fallback.data ?? []).map(mapearAcessoRow));
+}
+
+export async function buscarUltimasLeituras(
+  galpaoIds: string[]
+): Promise<Record<string, Leitura | null>> {
+  const ids = [...new Set(galpaoIds.filter((id) => id.length > 0))];
+  const pares = await Promise.all(
+    ids.map(async (id) => [id, await buscarUltimaLeitura(id)] as const)
+  );
+  return Object.fromEntries(pares);
+}
+
+export async function buscarLeiturasAprovadas(
+  galpoes: Galpao[]
+): Promise<Record<string, Leitura | null>> {
+  return buscarUltimasLeituras(
+    galpoes.filter(acessoAprovado).map((item) => item.id)
+  );
+}
+
+export async function aprovarAcessoDoGalpao(
+  galpaoId: string,
+  usuarioId: string
+): Promise<void> {
+  const { error } = await supabase.rpc("aprovar_acesso_galpao", {
+    p_galpao_id: galpaoId,
+    p_usuario_id: usuarioId,
+  });
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function recusarAcessoDoGalpao(
+  galpaoId: string,
+  usuarioId: string
+): Promise<void> {
+  const { error } = await supabase.rpc("recusar_acesso_galpao", {
+    p_galpao_id: galpaoId,
+    p_usuario_id: usuarioId,
+  });
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function sairDoGalpao(galpaoId: string): Promise<void> {
+  const { error } = await supabase.rpc("sair_do_galpao", {
+    p_galpao_id: galpaoId,
+  });
+
+  if (error) {
+    throw error;
+  }
 }
 
 export async function buscarUltimaLeitura(
@@ -287,6 +345,34 @@ export async function listarLeituras(
   }
 
   return data ?? [];
+}
+
+export async function listarNotificacoes(userId: string): Promise<Notificacao[]> {
+  const { data, error } = await supabase
+    .from("notificacoes")
+    .select(
+      "id, usuario_id, tipo, titulo, mensagem, lida, galpao_id, dados, criado_em"
+    )
+    .eq("usuario_id", userId)
+    .order("criado_em", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).map(mapearNotificacao);
+}
+
+export async function marcarNotificacaoLida(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("notificacoes")
+    .update({ lida: true })
+    .eq("id", id);
+
+  if (error) {
+    throw error;
+  }
 }
 
 export { soDigitos };

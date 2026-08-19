@@ -1,4 +1,5 @@
 import {
+  acessoAprovado,
   mapearGalpao,
   parseLimiar,
   usuarioPodeGerenciar,
@@ -24,6 +25,7 @@ describe("mapearGalpao", () => {
       limiarTensao: 4.5,
       limiarCorrente: 80,
       papel: "dono",
+      statusAcesso: "aprovado",
     });
   });
 
@@ -41,6 +43,24 @@ describe("mapearGalpao", () => {
       limiarTensao: 3,
       limiarCorrente: 50,
       papel: "operador",
+      statusAcesso: "aprovado",
+    });
+  });
+
+  it("mapeia pedido pendente quando o status vem no vínculo", () => {
+    expect(
+      mapearGalpao(
+        {
+          id: "galpao-1",
+          nome: "Norte",
+          codigo: "ABC123",
+        },
+        "operador",
+        "pendente"
+      )
+    ).toMatchObject({
+      papel: "operador",
+      statusAcesso: "pendente",
     });
   });
 
@@ -68,5 +88,12 @@ describe("usuarioPodeGerenciar", () => {
   it("só o dono gerencia", () => {
     expect(usuarioPodeGerenciar({ papel: "dono" })).toBe(true);
     expect(usuarioPodeGerenciar({ papel: "operador" })).toBe(false);
+  });
+});
+
+describe("acessoAprovado", () => {
+  it("bloqueia só o status pendente", () => {
+    expect(acessoAprovado({ statusAcesso: "aprovado" })).toBe(true);
+    expect(acessoAprovado({ statusAcesso: "pendente" })).toBe(false);
   });
 });
