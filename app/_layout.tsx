@@ -14,28 +14,14 @@ export default function RootLayout() {
     <AuthProvider>
       <SimuladorProvider>
         <AuthGate>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="(auth)/login/page"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="(auth)/cadastro/page"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="(private)/home/page"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="(private)/galpao/[id]/page"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="(private)/historico/page"
-            options={{ headerShown: false }}
-          />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)/login/page" />
+          <Stack.Screen name="(auth)/cadastro/page" />
+          <Stack.Screen name="(private)/home/page" />
+          <Stack.Screen name="(private)/perfil/page" />
+          <Stack.Screen name="(private)/galpao/[id]/page" />
+          <Stack.Screen name="(private)/historico/page" />
           <Stack.Screen name="+not-found" />
         </Stack>
         </AuthGate>

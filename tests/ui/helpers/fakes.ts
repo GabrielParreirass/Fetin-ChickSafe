@@ -12,12 +12,23 @@ export const galpaoNorte = {
   id: "galpao-1",
   nome: "Galpão Norte",
   codigo: "ABC123",
+  limiarTensao: 3,
+  limiarCorrente: 50,
+  papel: "dono",
 };
 
 export const galpaoSul = {
   id: "galpao-2",
   nome: "Galpão Sul",
   codigo: "XYZ789",
+  limiarTensao: 3,
+  limiarCorrente: 50,
+  papel: "dono",
+};
+
+export const galpaoNorteFuncionario = {
+  ...galpaoNorte,
+  papel: "operador",
 };
 
 export const leituraNormal = {

@@ -2,7 +2,7 @@ jest.mock("@/lib/supabase", () => ({
   supabase: {},
 }));
 
-import { soDigitos } from "@/lib/database";
+import { formatarCpf, soDigitos } from "@/lib/database";
 
 describe("soDigitos", () => {
   it("devolve string vazia quando não há dígitos", () => {
@@ -20,5 +20,15 @@ describe("soDigitos", () => {
 
   it("remove espaços e outros caracteres", () => {
     expect(soDigitos("(31) 99999-0000")).toBe("31999990000");
+  });
+});
+
+describe("formatarCpf", () => {
+  it("aplica máscara em CPF com 11 dígitos", () => {
+    expect(formatarCpf("12345678900")).toBe("123.456.789-00");
+  });
+
+  it("mantém o valor quando não tem 11 dígitos", () => {
+    expect(formatarCpf("123")).toBe("123");
   });
 });

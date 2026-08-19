@@ -1,10 +1,9 @@
 import { useAuth } from "@/contexts/auth";
 import { useSimulador } from "@/contexts/simulador";
-import { formatarLinhaAcesso, type AcessoGalpao } from "@/lib/acesso";
+import { useGalpaoGestao } from "@/components/galpao-gestao";
 import {
   criarGalpao,
   entrarGalpaoPorCodigo,
-  listarAcessosDoGalpao,
   listarGalpoesDoUsuario,
 } from "@/lib/database";
 import type { Galpao } from "@/lib/types";
@@ -29,13 +28,10 @@ export default function HomeLogadaScreen() {
   const { ativo, ultima, iniciar, parar } = useSimulador();
   const [galpoes, setGalpoes] = useState<Galpao[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [modal, setModal] = useState<"entrar" | "criar" | "acesso" | null>(null);
+  const [modal, setModal] = useState<"entrar" | "criar" | null>(null);
   const [codigo, setCodigo] = useState("");
   const [nomeGalpao, setNomeGalpao] = useState("");
   const [salvando, setSalvando] = useState(false);
-  const [galpaoAcesso, setGalpaoAcesso] = useState<Galpao | null>(null);
-  const [acessos, setAcessos] = useState<AcessoGalpao[]>([]);
-  const [carregandoAcesso, setCarregandoAcesso] = useState(false);
 
   const primeiroNome = (usuario?.nome ?? "produtor").split(" ")[0];
 
@@ -57,6 +53,10 @@ export default function HomeLogadaScreen() {
     }
   }, [user]);
 
+  const { abrirAcessos, abrirConfig, modais: modaisGestao } = useGalpaoGestao({
+    aoAtualizar: carregar,
+  });
+
   useFocusEffect(
     useCallback(() => {
       carregar();
@@ -71,29 +71,6 @@ export default function HomeLogadaScreen() {
     setModal(null);
     setCodigo("");
     setNomeGalpao("");
-    setGalpaoAcesso(null);
-    setAcessos([]);
-  };
-
-  const abrirAcessos = async (galpao: Galpao) => {
-    setGalpaoAcesso(galpao);
-    setAcessos([]);
-    setCarregandoAcesso(true);
-    setModal("acesso");
-    try {
-      const lista = await listarAcessosDoGalpao(galpao.id);
-      setAcessos(lista);
-    } catch (error) {
-      const mensagem =
-        error instanceof Error
-          ? error.message
-          : "Não foi possível carregar quem tem acesso.";
-      Alert.alert("Acesso", mensagem);
-      setModal(null);
-      setGalpaoAcesso(null);
-    } finally {
-      setCarregandoAcesso(false);
-    }
   };
 
   const confirmarAcao = async () => {
@@ -147,6 +124,13 @@ export default function HomeLogadaScreen() {
         <Text style={styles.userName}>Olá, {primeiroNome}!</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
+            onPress={() => router.push("/(private)/perfil/page" as Href)}
+            style={styles.headerButton}
+            accessibilityLabel="Abrir perfil"
+          >
+            <MaterialIcons name="person" size={26} color="#333" />
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={() => router.push("/(private)/historico/page" as Href)}
             style={styles.headerButton}
             accessibilityLabel="Abrir histórico"
@@ -194,6 +178,13 @@ export default function HomeLogadaScreen() {
                   ) : null}
                 </TouchableOpacity>
                 <TouchableOpacity
+                  style={styles.configButton}
+                  onPress={() => abrirConfig(item)}
+                  accessibilityLabel={`Configurar ${item.nome}`}
+                >
+                  <MaterialIcons name="settings" size={20} color="#333" />
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={styles.acessoButton}
                   onPress={() => void abrirAcessos(item)}
                   accessibilityLabel={`Ver acesso de ${item.nome}`}
@@ -207,7 +198,10 @@ export default function HomeLogadaScreen() {
 
         <View style={styles.footerActions}>
           <TouchableOpacity
-            style={ativo ? styles.primaryButton : styles.secondaryButton}
+            style={[
+              ativo ? styles.primaryButton : styles.secondaryButton,
+              styles.footerButton,
+            ]}
             onPress={() => (ativo ? parar() : void iniciar())}
           >
             <Text
@@ -223,7 +217,7 @@ export default function HomeLogadaScreen() {
             </Text>
           ) : null}
           <TouchableOpacity
-            style={styles.secondaryButton}
+            style={[styles.secondaryButton, styles.footerButton]}
             onPress={() => setModal("entrar")}
           >
             <Text style={styles.secondaryButtonText}>Entrar com código</Text>
@@ -237,38 +231,7 @@ export default function HomeLogadaScreen() {
         </View>
       </View>
 
-      <Modal visible={modal === "acesso"} transparent animationType="fade">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              Acesso — {galpaoAcesso?.nome ?? "galpão"}
-            </Text>
-            {carregandoAcesso ? (
-              <ActivityIndicator color="#333" />
-            ) : acessos.length === 0 ? (
-              <Text style={styles.emptyAcessoText}>
-                Ninguém com acesso neste galpão.
-              </Text>
-            ) : (
-              acessos.map((acesso) => (
-                <View key={acesso.usuarioId} style={styles.acessoItem}>
-                  <View style={styles.acessoInfo}>
-                    <Text style={styles.acessoNome}>
-                      {formatarLinhaAcesso(acesso)}
-                    </Text>
-                    {acesso.email ? (
-                      <Text style={styles.acessoEmail}>{acesso.email}</Text>
-                    ) : null}
-                  </View>
-                </View>
-              ))
-            )}
-            <TouchableOpacity onPress={fecharModal}>
-              <Text style={styles.cancelText}>Fechar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {modaisGestao}
 
       <Modal
         visible={modal === "entrar" || modal === "criar"}
@@ -381,6 +344,12 @@ const styles = StyleSheet.create({
     right: 8,
     padding: 4,
   },
+  configButton: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    padding: 4,
+  },
   galpaoNome: {
     fontSize: 13,
     fontWeight: "bold",
@@ -401,13 +370,17 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   footerActions: {
-    gap: 10,
-    paddingTop: 8,
+    paddingTop: 20,
+    paddingBottom: 4,
+  },
+  footerButton: {
+    marginBottom: 16,
   },
   simuladorStatus: {
     fontSize: 13,
     color: "#555",
     textAlign: "center",
+    marginBottom: 16,
   },
   primaryButton: {
     backgroundColor: "#333",
@@ -497,5 +470,51 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#333",
+  },
+  campoLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#555",
+    marginTop: 4,
+  },
+  campoValor: {
+    fontSize: 16,
+    color: "#333",
+    marginBottom: 8,
+  },
+  campoAjuda: {
+    fontSize: 12,
+    color: "#777",
+    marginBottom: 8,
+  },
+  erroAcesso: {
+    color: "#8B0000",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  avisoAcesso: {
+    color: "#333",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  removerText: {
+    color: "#8B0000",
+    fontSize: 14,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
+  dangerButton: {
+    borderWidth: 2,
+    borderColor: "#8B0000",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  dangerButtonText: {
+    color: "#8B0000",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

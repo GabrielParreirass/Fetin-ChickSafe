@@ -6,7 +6,11 @@ jest.mock("@/lib/supabase", () => ({
 }));
 
 import type { User } from "@supabase/supabase-js";
-import { buscarUsuario, garantirPerfil } from "@/lib/database";
+import {
+  buscarUsuario,
+  garantirPerfil,
+  atualizarPerfil,
+} from "@/lib/database";
 import type { Usuario } from "@/lib/types";
 import {
   createMockQuery,
@@ -212,6 +216,55 @@ describe("garantirPerfil", () => {
         cpf: "12345678900",
         telefone: "31999990000",
       })
+    ).rejects.toEqual(erro);
+  });
+});
+
+describe("atualizarPerfil", () => {
+  beforeEach(() => {
+    resetSupabaseMocks();
+  });
+
+  it("atualiza só nome e telefone", async () => {
+    const atualizado = { ...PERFIL, nome: "Maria Souza", telefone: "31888887777" };
+    const consulta = createMockQuery({ data: atualizado, error: null });
+    supabaseMocks().from.mockReturnValue(consulta);
+
+    await expect(
+      atualizarPerfil("user-1", {
+        nome: "  Maria Souza  ",
+        telefone: " 31888887777 ",
+      })
+    ).resolves.toEqual(atualizado);
+
+    expect(consulta.update).toHaveBeenCalledWith({
+      nome: "Maria Souza",
+      telefone: "31888887777",
+    });
+    expect(consulta.eq).toHaveBeenCalledWith("id", "user-1");
+  });
+
+  it("rejeita nome vazio", async () => {
+    await expect(
+      atualizarPerfil("user-1", { nome: "  ", telefone: "31999990000" })
+    ).rejects.toThrow("Informe o nome.");
+    expect(supabaseMocks().from).not.toHaveBeenCalled();
+  });
+
+  it("rejeita telefone vazio", async () => {
+    await expect(
+      atualizarPerfil("user-1", { nome: "Maria", telefone: "" })
+    ).rejects.toThrow("Informe o telefone.");
+  });
+
+  it("propaga erro do Supabase", async () => {
+    const erro = { message: "E-mail e CPF não podem ser alterados" };
+    supabaseMocks().from.mockReturnValue(
+      createMockQuery({ data: null, error: erro })
+    );
+
+    await expect(
+      atualizarPerfil("user-1", { nome: "Maria", telefone: "31999990000" })
     ).rejects.toEqual(erro);
   });
 });

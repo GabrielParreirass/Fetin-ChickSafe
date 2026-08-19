@@ -1,4 +1,5 @@
 import {
+  ehDono,
   formatarLinhaAcesso,
   mapearAcessoRow,
   ordenarAcessos,
@@ -38,6 +39,14 @@ describe("rotuloPapel", () => {
 
   it("trata papel desconhecido como Funcionário", () => {
     expect(rotuloPapel("outro")).toBe("Funcionário");
+  });
+});
+
+describe("ehDono", () => {
+  it("reconhece só o papel dono", () => {
+    expect(ehDono("dono")).toBe(true);
+    expect(ehDono("operador")).toBe(false);
+    expect(ehDono(undefined)).toBe(false);
   });
 });
 

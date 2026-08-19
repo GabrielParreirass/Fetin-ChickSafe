@@ -3,13 +3,21 @@ import { Alert } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "@/contexts/auth";
 import {
+  apagarGalpao,
+  atualizarGalpao,
   criarGalpao,
   entrarGalpaoPorCodigo,
   listarAcessosDoGalpao,
   listarGalpoesDoUsuario,
+  removerAcessoDoGalpao,
 } from "@/lib/database";
 import HomeLogadaScreen from "@/app/(private)/home/page";
-import { galpaoNorte, userAuthPadrao, usuarioPadrao } from "./helpers/fakes";
+import {
+  galpaoNorte,
+  galpaoNorteFuncionario,
+  userAuthPadrao,
+  usuarioPadrao,
+} from "./helpers/fakes";
 
 jest.mock("expo-router", () => {
   const React = require("react");
@@ -47,6 +55,9 @@ jest.mock("@/lib/database", () => ({
   entrarGalpaoPorCodigo: jest.fn(),
   criarGalpao: jest.fn(),
   listarAcessosDoGalpao: jest.fn(),
+  atualizarGalpao: jest.fn(),
+  removerAcessoDoGalpao: jest.fn(),
+  apagarGalpao: jest.fn(),
 }));
 
 jest.mock("@expo/vector-icons/MaterialIcons", () => {
@@ -326,5 +337,137 @@ describe("HomeLogadaScreen", () => {
         "Sem acesso a este galpão"
       );
     });
+  });
+
+  it("abre o perfil pelo botão do header", async () => {
+    render(<HomeLogadaScreen />);
+    await screen.findByText("Olá, Maria!");
+
+    fireEvent.press(screen.getByLabelText("Abrir perfil"));
+
+    expect(router.push).toHaveBeenCalledWith("/(private)/perfil/page");
+  });
+
+  it("deixa o dono salvar nome e limiares nas configurações", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([galpaoNorte]);
+    (atualizarGalpao as jest.Mock).mockResolvedValue({
+      ...galpaoNorte,
+      nome: "Galpão Novo",
+      limiarTensao: 4,
+      limiarCorrente: 80,
+    });
+    render(<HomeLogadaScreen />);
+    await screen.findByText("Galpão Norte");
+    fireEvent.press(screen.getByLabelText("Configurar Galpão Norte"));
+    await screen.findByText("Configurações — Galpão Norte");
+
+    fireEvent.changeText(screen.getByDisplayValue("Galpão Norte"), "Galpão Novo");
+    fireEvent.changeText(screen.getByDisplayValue("3"), "4");
+    fireEvent.changeText(screen.getByDisplayValue("50"), "80");
+    fireEvent.press(screen.getByText("Salvar alterações"));
+
+    await waitFor(() => {
+      expect(atualizarGalpao).toHaveBeenCalledWith({
+        galpaoId: "galpao-1",
+        nome: "Galpão Novo",
+        limiarTensao: 4,
+        limiarCorrente: 80,
+      });
+    });
+    expect(await screen.findByText("Alterações salvas.")).toBeOnTheScreen();
+  });
+
+  it("remove funcionário depois da confirmação", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([galpaoNorte]);
+    (listarAcessosDoGalpao as jest.Mock)
+      .mockResolvedValueOnce([
+        {
+          usuarioId: "user-1",
+          nome: "Maria Silva",
+          email: "maria@chicksafe.app",
+          papel: "dono",
+        },
+        {
+          usuarioId: "user-2",
+          nome: "Bruno",
+          email: "bruno@chicksafe.app",
+          papel: "operador",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          usuarioId: "user-1",
+          nome: "Maria Silva",
+          email: "maria@chicksafe.app",
+          papel: "dono",
+        },
+      ]);
+    (removerAcessoDoGalpao as jest.Mock).mockResolvedValue(undefined);
+    render(<HomeLogadaScreen />);
+    await screen.findByText("Galpão Norte");
+    fireEvent.press(screen.getByLabelText("Ver acesso de Galpão Norte"));
+    await screen.findByText("Bruno — Funcionário");
+
+    fireEvent.press(screen.getByLabelText("Remover acesso de Bruno"));
+    expect(screen.getByText("Confirmar")).toBeOnTheScreen();
+    fireEvent.press(screen.getByLabelText("Remover acesso de Bruno"));
+
+    await waitFor(() => {
+      expect(removerAcessoDoGalpao).toHaveBeenCalledWith("galpao-1", "user-2");
+    });
+  });
+
+  it("apaga o galpão nas configurações depois da confirmação", async () => {
+    (listarGalpoesDoUsuario as jest.Mock)
+      .mockResolvedValueOnce([galpaoNorte])
+      .mockResolvedValueOnce([]);
+    (apagarGalpao as jest.Mock).mockResolvedValue(undefined);
+    render(<HomeLogadaScreen />);
+    await screen.findByText("Galpão Norte");
+    fireEvent.press(screen.getByLabelText("Configurar Galpão Norte"));
+    await screen.findByText("Apagar galpão");
+
+    fireEvent.press(screen.getByText("Apagar galpão"));
+    fireEvent.press(screen.getByText("Confirmar exclusão"));
+
+    await waitFor(() => {
+      expect(apagarGalpao).toHaveBeenCalledWith("galpao-1");
+    });
+  });
+
+  it("esconde edição nas configurações para funcionário", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([
+      galpaoNorteFuncionario,
+    ]);
+    render(<HomeLogadaScreen />);
+    await screen.findByText("Galpão Norte");
+    fireEvent.press(screen.getByLabelText("Configurar Galpão Norte"));
+    await screen.findByText("Configurações — Galpão Norte");
+
+    expect(screen.getByText("O código de convite não pode ser alterado.")).toBeOnTheScreen();
+    expect(screen.getByText("3 V")).toBeOnTheScreen();
+    expect(screen.getByText("50 mA")).toBeOnTheScreen();
+    expect(screen.queryByText("Salvar alterações")).toBeNull();
+    expect(screen.queryByText("Apagar galpão")).toBeNull();
+  });
+
+  it("mantém a lista de acesso só com as pessoas", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([galpaoNorte]);
+    (listarAcessosDoGalpao as jest.Mock).mockResolvedValue([
+      {
+        usuarioId: "user-1",
+        nome: "Maria Silva",
+        email: "maria@chicksafe.app",
+        papel: "dono",
+      },
+    ]);
+    render(<HomeLogadaScreen />);
+    await screen.findByText("Galpão Norte");
+    fireEvent.press(screen.getByLabelText("Ver acesso de Galpão Norte"));
+    await screen.findByText("Maria Silva — Dono");
+
+    expect(screen.queryByText("Limiar de tensão (V)")).toBeNull();
+    expect(screen.queryByText("Salvar alterações")).toBeNull();
+    expect(screen.queryByText("Apagar galpão")).toBeNull();
   });
 });

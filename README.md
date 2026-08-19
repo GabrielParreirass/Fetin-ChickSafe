@@ -7,13 +7,14 @@ O app é [Expo](https://docs.expo.dev/versions/v54.0.0/) 54 + React Native, com 
 ## O que o app faz
 
 - Cadastro e login com e-mail/senha (Supabase Auth)
-- Perfil do produtor (nome, CPF, telefone) na tabela `usuarios`
+- Perfil do produtor (nome e telefone editáveis; e-mail e CPF fixos)
 - Criar galpão (gera código de convite) ou entrar com código
 - Home com a lista de galpões do usuário
 - Ver quem tem acesso ao galpão (Dono quem criou, Funcionário quem entrou com código)
-- Detalhe do galpão com cards de status (Normal / Alerta)
+- Dono gerencia o galpão: nome, limiares de tensão/corrente, remover funcionário e apagar
+- Detalhe do galpão com cards de status (Normal / Alerta) segundo os limiares do galpão
 - Atualização ao vivo quando chega `INSERT` em `leituras`
-- Histórico das mudanças (energia, tensão, corrente), geral ou filtrado por galpão
+- Histórico das mudanças, filtrado por galpão, data e tipo (energia, tensão, corrente)
 - Proteção de rotas: área privada só com sessão; logado é mandado para a home
 
 ## Stack
@@ -28,11 +29,11 @@ O app é [Expo](https://docs.expo.dev/versions/v54.0.0/) 54 + React Native, com 
 
 ## Regras de monitoramento
 
-Definidas em `lib/status.ts`:
+Definidas em `lib/status.ts` (padrão; o dono pode mudar por galpão):
 
 - Energia: `Fonte` e `USB` contam como fonte; o restante é bateria
-- Tensão ok se **> 3 V**
-- Corrente do ventilador ok se **> 50 mA**
+- Tensão ok se **> limiar do galpão** (padrão 3 V)
+- Corrente do ventilador ok se **> limiar do galpão** (padrão 50 mA)
 - Qualquer valor no limiar ou abaixo vira **Alerta**
 
 ## Arquitetura
@@ -42,14 +43,16 @@ Telas (app/) → contextos (auth, AuthGate) → lib/ (regras + acesso a dados) �
 ```
 
 - `lib/database.ts` — perfil, galpões, acessos e leituras
-- `lib/historico.ts` — extrai mudanças entre leituras consecutivas
+- `lib/historico.ts` — extrai mudanças entre leituras consecutivas e filtra por data/campo
 - `lib/status.ts` — limiares e rótulos
 - `lib/acesso.ts` — papéis Dono / Funcionário
-- `contexts/auth.tsx` — sessão, login, cadastro, logout
+- `lib/galpao.ts` — mapeia galpão e valida limiares
+- `contexts/auth.tsx` — sessão, login, cadastro, logout e edição de conta
 - `contexts/auth-gate.tsx` — redireciona público ↔ privado
-- `supabase/extras.sql` — grants e RPCs `entrar_galpao` / `criar_galpao` / `listar_acessos_galpao`
+- `supabase/extras.sql` — grants e RPCs `entrar_galpao` / `criar_galpao` / `listar_acessos_galpao` / gestão do dono
 - `supabase/alter-leituras.sql` — energia Fonte/Bateria/USB e policy de insert
 - `supabase/listar-acessos.sql` — RPC para listar dono e funcionários de um galpão
+- `supabase/gestao.sql` — perfil, limiares, remover acesso e apagar galpão
 
 Leituras reais devem vir de um ESP32. Nesta branch há um **simulador no app** (`lib/simulador.ts` + `contexts/simulador.tsx`) que publica leituras nos galpões nomeados `Teste1` e `Teste2`. Ele é temporário e será removido quando o hardware/MQTT estiver no fluxo.
 
@@ -62,6 +65,7 @@ app/
   index.tsx                 # boas-vindas
   (auth)/login|cadastro     # autenticação
   (private)/home            # galpões
+  (private)/perfil          # editar conta
   (private)/galpao/[id]     # detalhe + realtime
   (private)/historico       # mudanças
 contexts/                   # AuthProvider, AuthGate, simulador
@@ -101,7 +105,9 @@ tests/
    - `supabase/extras.sql`
    - `supabase/alter-leituras.sql`
 
-   Se a lista de acessos do galpão mostrar só quem está logado, rode de novo `supabase/listar-acessos.sql` (a RPC `listar_acessos_galpao` precisa existir no banco).
+   Se o projeto já existia, rode também `supabase/listar-acessos.sql` e `supabase/gestao.sql`.
+
+   Se a lista de acessos do galpão mostrar só quem está logado, rode de novo `supabase/listar-acessos.sql`.
 
 ## Como rodar
 

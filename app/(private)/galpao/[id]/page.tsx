@@ -1,3 +1,4 @@
+import { useGalpaoGestao } from "@/components/galpao-gestao";
 import { useAuth } from "@/contexts/auth";
 import {
   buscarUltimaLeitura,
@@ -7,6 +8,8 @@ import {
   correnteOk,
   formatarCorrente,
   formatarTensao,
+  LIMIAR_CORRENTE_MA,
+  LIMIAR_TENSAO_V,
   rotuloEnergia,
   tensaoOk,
 } from "@/lib/status";
@@ -34,7 +37,11 @@ type StatusCard = {
   ok: boolean;
 };
 
-function cardsDaLeitura(leitura: Leitura | null): StatusCard[] {
+function cardsDaLeitura(
+  leitura: Leitura | null,
+  limiarTensao = LIMIAR_TENSAO_V,
+  limiarCorrente = LIMIAR_CORRENTE_MA
+): StatusCard[] {
   if (!leitura) {
     return [
       { campo: "energia", titulo: "Energia", valor: "Sem dados", ok: false },
@@ -67,13 +74,13 @@ function cardsDaLeitura(leitura: Leitura | null): StatusCard[] {
       campo: "tensao",
       titulo: "Tensão da Bateria",
       valor: formatarTensao(tensao),
-      ok: tensaoOk(tensao),
+      ok: tensaoOk(tensao, limiarTensao),
     },
     {
       campo: "corrente",
       titulo: "Corrente do ventilador",
       valor: formatarCorrente(corrente),
-      ok: correnteOk(corrente),
+      ok: correnteOk(corrente, limiarCorrente),
     },
   ];
 }
@@ -90,12 +97,42 @@ export default function GalpaoDetalheScreen() {
   const [modalVisible, setModalVisible] = useState(false);
 
   const primeiroNome = (usuario?.nome ?? "produtor").split(" ")[0];
-  const cards = cardsDaLeitura(leitura);
+  const cards = cardsDaLeitura(
+    leitura,
+    ambienteSelecionado?.limiarTensao,
+    ambienteSelecionado?.limiarCorrente
+  );
 
   const carregarLeitura = useCallback(async (galpaoId: string) => {
     const atual = await buscarUltimaLeitura(galpaoId);
     setLeitura(atual);
   }, []);
+
+  const recarregarGalpoes = useCallback(
+    async (atualizado?: Galpao) => {
+      if (!user) {
+        return;
+      }
+      const lista = await listarGalpoesDoUsuario(user.id);
+      setGalpoes(lista);
+      if (atualizado) {
+        setAmbienteSelecionado(atualizado);
+        return;
+      }
+      setAmbienteSelecionado((atual) => {
+        if (!atual) {
+          return lista[0] ?? null;
+        }
+        return lista.find((item) => item.id === atual.id) ?? lista[0] ?? null;
+      });
+    },
+    [user]
+  );
+
+  const { abrirAcessos, abrirConfig, modais } = useGalpaoGestao({
+    aoAtualizar: recarregarGalpoes,
+    aoApagar: () => router.back(),
+  });
 
   useEffect(() => {
     if (!user) {
@@ -227,13 +264,42 @@ export default function GalpaoDetalheScreen() {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.historicoButton}
-              onPress={abrirHistorico}
-            >
-              <MaterialIcons name="history" size={22} color="#f9ca0a" />
-              <Text style={styles.historicoButtonText}>Histórico</Text>
-            </TouchableOpacity>
+            <View style={styles.acoesRow}>
+              <TouchableOpacity
+                style={styles.acaoButton}
+                onPress={abrirHistorico}
+                accessibilityLabel="Abrir histórico"
+              >
+                <MaterialIcons name="history" size={22} color="#f9ca0a" />
+                <Text style={styles.acaoButtonText}>Histórico</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.acaoButton}
+                onPress={() => {
+                  if (ambienteSelecionado) {
+                    void abrirAcessos(ambienteSelecionado);
+                  }
+                }}
+                disabled={!ambienteSelecionado}
+                accessibilityLabel={`Ver acesso de ${ambienteSelecionado?.nome ?? "galpão"}`}
+              >
+                <MaterialIcons name="group" size={22} color="#f9ca0a" />
+                <Text style={styles.acaoButtonText}>Acesso</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.acaoButton}
+                onPress={() => {
+                  if (ambienteSelecionado) {
+                    abrirConfig(ambienteSelecionado);
+                  }
+                }}
+                disabled={!ambienteSelecionado}
+                accessibilityLabel={`Configurar ${ambienteSelecionado?.nome ?? "galpão"}`}
+              >
+                <MaterialIcons name="settings" size={22} color="#f9ca0a" />
+                <Text style={styles.acaoButtonText}>Ajustes</Text>
+              </TouchableOpacity>
+            </View>
 
             <Modal visible={modalVisible} transparent animationType="fade">
               <TouchableOpacity
@@ -273,6 +339,7 @@ export default function GalpaoDetalheScreen() {
           </>
         )}
       </View>
+      {modais}
     </View>
   );
 }
@@ -320,7 +387,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f1f1f1",
     borderRadius: 10,
     padding: 15,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   dropdownText: {
     flexDirection: "row",
@@ -331,26 +398,31 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#333",
   },
-  historicoButton: {
+  acoesRow: {
+    flexDirection: "row",
+    marginBottom: 24,
+    marginHorizontal: -6,
+  },
+  acaoButton: {
+    flex: 1,
     backgroundColor: "#333",
     borderRadius: 10,
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 20,
-    flexDirection: "row",
+    paddingHorizontal: 8,
+    marginHorizontal: 8,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 4,
   },
-  historicoButtonText: {
+  acaoButtonText: {
     color: "#f9ca0a",
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: "600",
   },
   card: {
     borderRadius: 15,
     padding: 20,
-    marginBottom: 20,
+    marginBottom: 22,
     alignItems: "center",
   },
   cardTitle: {

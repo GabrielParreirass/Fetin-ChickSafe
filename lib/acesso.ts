@@ -16,8 +16,12 @@ export type UsuarioGalpaoAcessoRow = {
     | null;
 };
 
+export function ehDono(papel?: string): boolean {
+  return papel === "dono";
+}
+
 export function rotuloPapel(papel: string): string {
-  return papel === "dono" ? "Dono" : "Funcionário";
+  return ehDono(papel) ? "Dono" : "Funcionário";
 }
 
 export function formatarLinhaAcesso(acesso: AcessoGalpao): string {

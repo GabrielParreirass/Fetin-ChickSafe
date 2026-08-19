@@ -8,6 +8,7 @@ jest.mock("@/lib/supabase", () => ({
       signInWithPassword: jest.fn(),
       signUp: jest.fn(),
       signOut: jest.fn(),
+      updateUser: jest.fn(),
     },
   },
 }));
@@ -15,6 +16,7 @@ jest.mock("@/lib/supabase", () => ({
 jest.mock("@/lib/database", () => ({
   garantirPerfil: jest.fn(),
   entrarGalpaoPorCodigo: jest.fn(),
+  atualizarPerfil: jest.fn(),
 }));
 
 import { useState } from "react";
@@ -22,7 +24,7 @@ import { Text, Pressable } from "react-native";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react-native";
 import type { Session, User } from "@supabase/supabase-js";
 import { AuthProvider, useAuth } from "@/contexts/auth";
-import { entrarGalpaoPorCodigo, garantirPerfil } from "@/lib/database";
+import { atualizarPerfil, entrarGalpaoPorCodigo, garantirPerfil } from "@/lib/database";
 import { supabase } from "@/lib/supabase";
 import type { Usuario } from "@/lib/types";
 
@@ -42,7 +44,7 @@ const USER = {
 const SESSION = { user: USER } as Session;
 
 function AuthStatus() {
-  const { loading, usuario, user, signIn, signUp, signOut, recarregarUsuario } =
+  const { loading, usuario, user, signIn, signUp, signOut, recarregarUsuario, atualizarConta } =
     useAuth();
   const [erro, setErro] = useState("nenhum");
   const [cadastro, setCadastro] = useState("nenhum");
@@ -114,6 +116,31 @@ function AuthStatus() {
       >
         <Text>recarregar</Text>
       </Pressable>
+      <Pressable
+        onPress={() => {
+          void atualizarConta({
+            nome: " Maria Souza ",
+            telefone: " 31888887777 ",
+            senha: "nova123",
+          }).catch((error) => {
+            setErro(error instanceof Error ? error.message : "falha");
+          });
+        }}
+      >
+        <Text>atualizar-conta</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => {
+          void atualizarConta({
+            nome: "Maria",
+            telefone: "31999990000",
+          }).catch((error) => {
+            setErro(error instanceof Error ? error.message : "falha");
+          });
+        }}
+      >
+        <Text>atualizar-sem-senha</Text>
+      </Pressable>
     </>
   );
 }
@@ -137,6 +164,12 @@ describe("AuthProvider", () => {
     });
     (garantirPerfil as jest.Mock).mockResolvedValue(PERFIL);
     (entrarGalpaoPorCodigo as jest.Mock).mockResolvedValue("galpao-1");
+    (atualizarPerfil as jest.Mock).mockResolvedValue({
+      ...PERFIL,
+      nome: "Maria Souza",
+      telefone: "31888887777",
+    });
+    (supabase.auth.updateUser as jest.Mock).mockResolvedValue({ error: null });
   });
 
   it("inicia sem sessão e encerra o loading", async () => {
@@ -326,6 +359,42 @@ describe("AuthProvider", () => {
     fireEvent.press(screen.getByText("recarregar"));
 
     expect(await screen.findByText("usuario:Maria Atualizada")).toBeOnTheScreen();
+  });
+
+  it("atualiza perfil e senha", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+      data: { session: SESSION },
+    });
+    renderAuth();
+    await screen.findByText("usuario:Maria Silva");
+
+    fireEvent.press(screen.getByText("atualizar-conta"));
+
+    await waitFor(() => {
+      expect(atualizarPerfil).toHaveBeenCalledWith("user-1", {
+        nome: " Maria Souza ",
+        telefone: " 31888887777 ",
+      });
+      expect(supabase.auth.updateUser).toHaveBeenCalledWith({
+        password: "nova123",
+      });
+    });
+    expect(await screen.findByText("usuario:Maria Souza")).toBeOnTheScreen();
+  });
+
+  it("não troca senha quando ela não vem", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+      data: { session: SESSION },
+    });
+    renderAuth();
+    await screen.findByText("usuario:Maria Silva");
+
+    fireEvent.press(screen.getByText("atualizar-sem-senha"));
+
+    await waitFor(() => {
+      expect(atualizarPerfil).toHaveBeenCalled();
+    });
+    expect(supabase.auth.updateUser).not.toHaveBeenCalled();
   });
 });
 
