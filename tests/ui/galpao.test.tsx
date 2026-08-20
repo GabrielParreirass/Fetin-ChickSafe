@@ -77,13 +77,19 @@ describe("GalpaoDetalheScreen", () => {
     jest.spyOn(Alert, "alert").mockImplementation(() => {});
     leituraInsert = undefined;
     (supabase.channel as jest.Mock).mockImplementation(() => {
-      const channel = {
-        on: jest.fn((_evento, filtro, callback) => {
-          if (filtro?.table === "leituras") {
-            leituraInsert = callback;
+      const channel: { on: jest.Mock; subscribe: jest.Mock } = {
+        on: jest.fn(
+          (
+            _evento: string,
+            filtro: { table?: string },
+            callback: (payload: { new: unknown }) => void
+          ) => {
+            if (filtro?.table === "leituras") {
+              leituraInsert = callback;
+            }
+            return channel;
           }
-          return channel;
-        }),
+        ),
         subscribe: jest.fn(),
       };
       return channel;
