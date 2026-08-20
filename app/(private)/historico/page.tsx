@@ -32,7 +32,7 @@ import {
   View,
 } from "react-native";
 
-const FILTROS_CAMPO: Array<{ id: FiltroCampoMudanca; rotulo: string }> = [
+const FILTROS_CAMPO: { id: FiltroCampoMudanca; rotulo: string }[] = [
   { id: "todos", rotulo: "Todos" },
   { id: "energia", rotulo: "Energia" },
   { id: "tensao", rotulo: "Tensão da bateria" },
