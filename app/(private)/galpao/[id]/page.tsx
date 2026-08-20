@@ -221,7 +221,7 @@ export default function GalpaoDetalheScreen() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [ambienteSelecionado?.id, ambienteSelecionado?.statusAcesso]);
+  }, [ambienteSelecionado]);
 
   const getIndicadorCor = () => {
     if (!leitura) {

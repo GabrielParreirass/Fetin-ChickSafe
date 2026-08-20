@@ -133,13 +133,34 @@ npm run test:unit        # regras de negócio
 npm run test:integration # database + AuthProvider
 npm run test:ui          # telas
 npm run test:watch       # modo watch
+npm run test:ci          # Jest no modo CI (relatório + cobertura + piso de lib/)
+npm run lint             # ESLint
+npm run typecheck        # TypeScript sem gerar arquivos
 ```
 
-Também:
+No modo CI, a pasta `lib/` precisa de pelo menos **80%** de cobertura (statements, branches, functions e lines). Se o piso não for atingido, o comando falha.
 
-```bash
-npm run lint
-```
+## Integração contínua
+
+A cada `push` e `pull request`, o GitHub Actions (`.github/workflows/ci.yml`) sobe três jobs **em paralelo**:
+
+| Job | O que faz |
+|---|---|
+| **Testes** | `npm run test:ci` — roda a suíte, gera relatório e exige 80% de cobertura em `lib/` |
+| **Lint** | `npm run lint` |
+| **Typecheck** | `npm run typecheck` (`tsc --noEmit`) |
+
+Os três precisam passar para a run ficar verde. Uma falha aparece com o nome do job (por exemplo “Typecheck”), sem misturar com os testes.
+
+### Como ver o relatório no GitHub
+
+1. Abra o repositório → aba **Actions**
+2. Clique na run **CI** do commit
+3. Em **Summary**, a tabela de testes
+4. Em **Artifacts**, baixe `relatorio-testes`
+5. Abra `relatorio-testes.html` (resultados) e `coverage/lcov-report/index.html` (cobertura)
+
+O arquivo `reports/relatorio-testes.html` na sua máquina só está completo se você rodou `npm run test:ci`. Um `jest` só em um arquivo gera um HTML parcial.
 
 ## Scripts npm
 
@@ -148,7 +169,9 @@ npm run lint
 | `start` | Metro / Expo |
 | `android` / `ios` / `web` | Abre o alvo correspondente |
 | `lint` | ESLint |
+| `typecheck` | TypeScript (`tsc --noEmit`) |
 | `test` / `test:unit` / `test:integration` / `test:ui` | Jest |
+| `test:ci` | Jest no CI (relatório HTML, JUnit, cobertura e piso de `lib/`) |
 
 ## Próximos passos (já mapeados)
 
