@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+  checks: write
+  actions: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Tests
+        run: |
+          mkdir -p reports
+          npm run test:ci
+
+      - name: Relatório no GitHub
+        if: always()
+        run: node scripts/resumo-ci.js
+
+      - name: Publicar relatório Jest
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Relatório de testes
+          path: reports/junit.xml
+          reporter: jest-junit
+          fail-on-error: false
+
+      - name: Enviar artefato do relatório
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-testes
+          path: reports
+          if-no-files-found: ignore
+
+      - name: Lint
+        if: success()
+        run: npm run lint

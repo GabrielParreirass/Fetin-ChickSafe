@@ -1,4 +1,27 @@
 /** @type {import("jest").Config} */
+const reporters = ["default"];
+
+if (process.env.CI) {
+  reporters.push(
+    [
+      "jest-junit",
+      {
+        outputDirectory: "reports",
+        outputName: "junit.xml",
+      },
+    ],
+    [
+      "jest-html-reporters",
+      {
+        publicPath: "./reports",
+        filename: "relatorio-testes.html",
+        pageTitle: "ChickSafe — Relatório de testes",
+        expand: false,
+      },
+    ]
+  );
+}
+
 module.exports = {
   preset: "jest-expo",
   testMatch: [
@@ -12,4 +35,11 @@ module.exports = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
   },
+  collectCoverageFrom: [
+    "lib/**/*.{ts,tsx}",
+    "components/**/*.{ts,tsx}",
+    "contexts/**/*.{ts,tsx}",
+    "!**/*.d.ts",
+  ],
+  reporters,
 };
