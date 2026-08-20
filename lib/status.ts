@@ -61,6 +61,28 @@ export function statusGeralLeitura(
   return { ok, rotulo: ok ? "Normal" : "Alerta" };
 }
 
+export function entrouEmAlerta(
+  atual: {
+    energia: string;
+    tensao: number | string;
+    corrente: number | string;
+  } | null,
+  anterior: {
+    energia: string;
+    tensao: number | string;
+    corrente: number | string;
+  } | null,
+  limiarTensao: number = LIMIAR_TENSAO_V,
+  limiarCorrente: number = LIMIAR_CORRENTE_MA
+): boolean {
+  if (statusGeralLeitura(atual, limiarTensao, limiarCorrente).rotulo !== "Alerta") {
+    return false;
+  }
+  return (
+    statusGeralLeitura(anterior, limiarTensao, limiarCorrente).rotulo !== "Alerta"
+  );
+}
+
 export function resumoLeitura(leitura: {
   energia: string;
   tensao: number | string;

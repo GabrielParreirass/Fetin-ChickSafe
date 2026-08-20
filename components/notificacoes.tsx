@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -137,15 +138,22 @@ export function SinoNotificacoes({ usuarioId }: { usuarioId?: string }) {
         animationType="fade"
         onRequestClose={() => setAberta(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+        <Pressable
+          style={styles.modalContainer}
+          onPress={() => setAberta(false)}
+        >
+          <Pressable style={styles.modalContent} onPress={() => {}}>
             <Text style={styles.modalTitle}>Notificações</Text>
             {carregando && itens.length === 0 ? (
               <ActivityIndicator color="#333" />
             ) : itens.length === 0 ? (
               <Text style={styles.vazia}>Nenhuma notificação ainda.</Text>
             ) : (
-              <ScrollView style={styles.lista}>
+              <ScrollView
+                style={styles.lista}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={false}
+              >
                 {itens.map((item) => (
                   <TouchableOpacity
                     key={item.id}
@@ -165,8 +173,8 @@ export function SinoNotificacoes({ usuarioId }: { usuarioId?: string }) {
             <TouchableOpacity onPress={() => setAberta(false)}>
               <Text style={styles.fechar}>Fechar</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </>
   );
@@ -197,51 +205,58 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.3)",
     justifyContent: "center",
-    padding: 20,
+    alignItems: "center",
+    padding: 48,
   },
   modalContent: {
     backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
-    maxHeight: "80%",
+    borderRadius: 16,
+    padding: 14,
+    width: 280,
+    maxWidth: "100%",
+    maxHeight: 320,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "bold",
     color: "#333",
-    marginBottom: 12,
+    marginBottom: 10,
+    paddingHorizontal: 4,
   },
   lista: {
-    maxHeight: 360,
+    maxHeight: 220,
   },
   vazia: {
-    fontSize: 15,
+    fontSize: 14,
     color: "#555",
     textAlign: "center",
-    lineHeight: 22,
-    marginVertical: 12,
+    lineHeight: 20,
+    marginVertical: 10,
+    paddingHorizontal: 8,
   },
   item: {
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#eee",
+    backgroundColor: "#fff",
   },
   itemNaoLida: {
     backgroundColor: "#fff8e1",
-    marginHorizontal: -8,
-    paddingHorizontal: 8,
-    borderRadius: 8,
+    borderColor: "#f0e0a8",
   },
   itemTitulo: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     color: "#333",
   },
   itemMensagem: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#555",
     marginTop: 4,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   itemQuando: {
     fontSize: 12,
@@ -251,8 +266,8 @@ const styles = StyleSheet.create({
   fechar: {
     color: "#333",
     textAlign: "center",
-    fontSize: 16,
+    fontSize: 15,
     textDecorationLine: "underline",
-    marginTop: 12,
+    marginTop: 8,
   },
 });

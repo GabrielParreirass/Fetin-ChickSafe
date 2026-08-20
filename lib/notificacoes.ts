@@ -1,4 +1,7 @@
-export type TipoNotificacao = "pedido_acesso";
+export type TipoNotificacao =
+  | "pedido_acesso"
+  | "alerta_galpao"
+  | "acesso_aprovado";
 
 export type NotificacaoRow = {
   id: string;
@@ -26,6 +29,7 @@ export type Notificacao = {
 
 export type DestinoNotificacao =
   | { tipo: "acesso"; galpaoId: string }
+  | { tipo: "galpao"; galpaoId: string }
   | { tipo: "nenhum" };
 
 export function mapearNotificacao(row: NotificacaoRow): Notificacao {
@@ -45,8 +49,17 @@ export function mapearNotificacao(row: NotificacaoRow): Notificacao {
 export function destinoNotificacao(
   notificacao: Pick<Notificacao, "tipo" | "galpaoId">
 ): DestinoNotificacao {
-  if (notificacao.tipo === "pedido_acesso" && notificacao.galpaoId) {
+  if (!notificacao.galpaoId) {
+    return { tipo: "nenhum" };
+  }
+  if (notificacao.tipo === "pedido_acesso") {
     return { tipo: "acesso", galpaoId: notificacao.galpaoId };
+  }
+  if (
+    notificacao.tipo === "alerta_galpao" ||
+    notificacao.tipo === "acesso_aprovado"
+  ) {
+    return { tipo: "galpao", galpaoId: notificacao.galpaoId };
   }
   return { tipo: "nenhum" };
 }
@@ -56,6 +69,9 @@ export function rotaDestinoNotificacao(
 ): string | null {
   if (destino.tipo === "acesso") {
     return `/(private)/galpao/${destino.galpaoId}/page?acesso=1`;
+  }
+  if (destino.tipo === "galpao") {
+    return `/(private)/galpao/${destino.galpaoId}/page`;
   }
   return null;
 }

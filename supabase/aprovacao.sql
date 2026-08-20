@@ -181,6 +181,41 @@ begin
 end;
 $$;
 
+create or replace function public.notificar_acesso_aprovado(
+  p_galpao_id uuid,
+  p_usuario_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_nome_galpao text;
+begin
+  select nome into v_nome_galpao
+  from public.galpoes
+  where id = p_galpao_id;
+
+  insert into public.notificacoes (
+    usuario_id,
+    tipo,
+    titulo,
+    mensagem,
+    galpao_id
+  )
+  values (
+    p_usuario_id,
+    'acesso_aprovado',
+    'Acesso aprovado',
+    'Seu acesso ao galpão '
+      || coalesce(v_nome_galpao, 'selecionado')
+      || ' foi aprovado.',
+    p_galpao_id
+  );
+end;
+$$;
+
 create or replace function public.aprovar_acesso_galpao(
   p_galpao_id uuid,
   p_usuario_id uuid
@@ -209,6 +244,8 @@ begin
   if not found then
     raise exception 'Não há solicitação pendente deste usuário';
   end if;
+
+  perform public.notificar_acesso_aprovado(p_galpao_id, p_usuario_id);
 end;
 $$;
 
