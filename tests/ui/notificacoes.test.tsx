@@ -104,6 +104,50 @@ describe("SinoNotificacoes", () => {
     });
   });
 
+  it("leva o alerta para a página do galpão", async () => {
+    (listarNotificacoes as jest.Mock).mockResolvedValue([
+      {
+        ...pedido,
+        tipo: "alerta_galpao",
+        titulo: "Alerta no galpão",
+        mensagem: "O galpão Norte entrou em alerta.",
+      },
+    ]);
+    render(<SinoNotificacoes usuarioId="user-1" />);
+    fireEvent.press(
+      await screen.findByLabelText("Abrir notificações, 1 não lidas")
+    );
+    fireEvent.press(screen.getByLabelText("Alerta no galpão"));
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(
+        "/(private)/galpao/galpao-1/page"
+      );
+    });
+  });
+
+  it("leva a aprovação para a página do galpão", async () => {
+    (listarNotificacoes as jest.Mock).mockResolvedValue([
+      {
+        ...pedido,
+        tipo: "acesso_aprovado",
+        titulo: "Acesso aprovado",
+        mensagem: "Seu acesso ao galpão Norte foi aprovado.",
+      },
+    ]);
+    render(<SinoNotificacoes usuarioId="user-1" />);
+    fireEvent.press(
+      await screen.findByLabelText("Abrir notificações, 1 não lidas")
+    );
+    fireEvent.press(screen.getByLabelText("Acesso aprovado"));
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(
+        "/(private)/galpao/galpao-1/page"
+      );
+    });
+  });
+
   it("mostra estado vazio", async () => {
     render(<SinoNotificacoes usuarioId="user-1" />);
     fireEvent.press(await screen.findByLabelText("Abrir notificações"));

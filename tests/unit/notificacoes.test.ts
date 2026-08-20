@@ -62,6 +62,15 @@ describe("destinoNotificacao", () => {
     });
   });
 
+  it("leva alerta e aprovação para a página do galpão", () => {
+    expect(
+      destinoNotificacao({ tipo: "alerta_galpao", galpaoId: "galpao-1" })
+    ).toEqual({ tipo: "galpao", galpaoId: "galpao-1" });
+    expect(
+      destinoNotificacao({ tipo: "acesso_aprovado", galpaoId: "galpao-1" })
+    ).toEqual({ tipo: "galpao", galpaoId: "galpao-1" });
+  });
+
   it("não navega quando o tipo ainda não tem destino", () => {
     expect(
       destinoNotificacao({ tipo: "alerta_energia", galpaoId: "galpao-1" })
@@ -74,6 +83,12 @@ describe("rotaDestinoNotificacao", () => {
     expect(
       rotaDestinoNotificacao({ tipo: "acesso", galpaoId: "galpao-1" })
     ).toBe("/(private)/galpao/galpao-1/page?acesso=1");
+  });
+
+  it("abre a página do galpão sem o modal", () => {
+    expect(
+      rotaDestinoNotificacao({ tipo: "galpao", galpaoId: "galpao-1" })
+    ).toBe("/(private)/galpao/galpao-1/page");
   });
 
   it("não gera rota sem destino", () => {

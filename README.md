@@ -110,7 +110,7 @@ tests/
    - `supabase/extras.sql`
    - `supabase/alter-leituras.sql`
 
-   Se o projeto já existia, rode também `supabase/listar-acessos.sql`, `supabase/gestao.sql`, `supabase/aprovacao.sql` e `supabase/notificacoes.sql`.
+   Se o projeto já existia, rode também `supabase/listar-acessos.sql`, `supabase/gestao.sql`, `supabase/aprovacao.sql`, `supabase/notificacoes.sql` e `supabase/notificacoes-alerta.sql`.
 
    Se a lista de acessos do galpão mostrar só quem está logado, rode de novo `supabase/listar-acessos.sql`.
 

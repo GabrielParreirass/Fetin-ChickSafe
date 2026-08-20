@@ -1,6 +1,7 @@
 import {
   correnteOk,
   energiaEhFonte,
+  entrouEmAlerta,
   formatarCorrente,
   formatarTensao,
   LIMIAR_CORRENTE_MA,
@@ -99,6 +100,28 @@ describe("statusGeralLeitura", () => {
     expect(
       statusGeralLeitura({ energia: "Fonte", tensao: 2.5, corrente: 80 })
     ).toEqual({ ok: false, rotulo: "Alerta" });
+  });
+});
+
+describe("entrouEmAlerta", () => {
+  const normal = { energia: "Fonte", tensao: 4.2, corrente: 80 };
+  const alerta = { energia: "Bateria", tensao: 2.1, corrente: 10 };
+
+  it("dispara na primeira leitura em alerta", () => {
+    expect(entrouEmAlerta(alerta, null)).toBe(true);
+  });
+
+  it("dispara quando sai do normal para alerta", () => {
+    expect(entrouEmAlerta(alerta, normal)).toBe(true);
+  });
+
+  it("não dispara enquanto o galpão continua em alerta", () => {
+    expect(entrouEmAlerta(alerta, alerta)).toBe(false);
+  });
+
+  it("não dispara em leitura normal", () => {
+    expect(entrouEmAlerta(normal, alerta)).toBe(false);
+    expect(entrouEmAlerta(normal, null)).toBe(false);
   });
 });
 
