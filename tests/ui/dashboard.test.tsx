@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react-native";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react-native";
 import { Alert } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/contexts/auth";
 import { listarGalpoesDoUsuario, listarLeituras } from "@/lib/database";
+import { compartilharPdfHtml } from "@/lib/compartilhar";
 import DashboardGalpaoScreen from "@/app/(private)/galpao/[id]/dashboard/page";
 import {
   galpaoNorte,
@@ -26,6 +27,10 @@ jest.mock("@/contexts/auth", () => ({
 jest.mock("@/lib/database", () => ({
   listarGalpoesDoUsuario: jest.fn(),
   listarLeituras: jest.fn(),
+}));
+
+jest.mock("@/lib/compartilhar", () => ({
+  compartilharPdfHtml: jest.fn(),
 }));
 
 jest.mock("react-native-gifted-charts", () => {
@@ -79,6 +84,23 @@ describe("DashboardGalpaoScreen", () => {
     expect(screen.getByText("Fonte vs bateria")).toBeOnTheScreen();
     expect(screen.getByText("3.4 V")).toBeOnTheScreen();
     expect(screen.getByText("pizza-energia")).toBeOnTheScreen();
+  });
+
+  it("exporta o dashboard em PDF", async () => {
+    (compartilharPdfHtml as jest.Mock).mockResolvedValue(undefined);
+    render(<DashboardGalpaoScreen />);
+    await screen.findByText("Tensão ao longo do tempo");
+
+    fireEvent.press(screen.getByLabelText("Exportar dashboard"));
+
+    await waitFor(() => {
+      expect(compartilharPdfHtml).toHaveBeenCalled();
+    });
+    const html = (compartilharPdfHtml as jest.Mock).mock.calls[0][0];
+    expect(html).toContain("Galpão Norte");
+    expect(html).toContain("ChickSafe — Dashboard");
+    expect(html).toContain("Tensão ao longo do tempo");
+    expect(html).toContain("<svg");
   });
 
   it("bloqueia o dashboard para funcionário", async () => {

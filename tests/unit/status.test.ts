@@ -11,6 +11,11 @@ import {
   statusGeralLeitura,
   resumoLeitura,
   tensaoOk,
+  sensorOffline,
+  statusGalpao,
+  formatarTempoSemSinal,
+  corRotuloStatus,
+  MINUTOS_SEM_SINAL,
 } from "@/lib/status";
 
 describe("energiaEhFonte", () => {
@@ -142,5 +147,81 @@ describe("formatadores", () => {
   it("arredonda corrente para inteiro", () => {
     expect(formatarCorrente(50.4)).toBe("50 mA");
     expect(formatarCorrente(50.6)).toBe("51 mA");
+  });
+});
+
+describe("sensorOffline", () => {
+  const agora = new Date("2026-08-28T12:00:00.000Z");
+
+  it("não marca offline sem timestamp", () => {
+    expect(sensorOffline(null, agora)).toBe(false);
+    expect(sensorOffline("data-invalida", agora)).toBe(false);
+  });
+
+  it("marca offline no limiar de 5 minutos", () => {
+    expect(
+      sensorOffline("2026-08-28T11:55:00.000Z", agora, MINUTOS_SEM_SINAL)
+    ).toBe(true);
+    expect(sensorOffline("2026-08-28T11:55:01.000Z", agora)).toBe(false);
+  });
+});
+
+describe("statusGalpao", () => {
+  const agora = new Date("2026-08-28T12:00:00.000Z");
+  const recente = {
+    energia: "Fonte",
+    tensao: 4.2,
+    corrente: 80,
+    criado_em: "2026-08-28T11:58:00.000Z",
+  };
+
+  it("mantém Sem dados sem leitura", () => {
+    expect(statusGalpao(null, 3, 50, agora)).toEqual({
+      ok: false,
+      rotulo: "Sem dados",
+    });
+  });
+
+  it("marca Offline quando a leitura está velha", () => {
+    expect(
+      statusGalpao(
+        { ...recente, criado_em: "2026-08-28T11:50:00.000Z" },
+        3,
+        50,
+        agora
+      )
+    ).toEqual({ ok: false, rotulo: "Offline" });
+  });
+
+  it("usa Normal/Alerta quando a leitura é recente", () => {
+    expect(statusGalpao(recente, 3, 50, agora)).toEqual({
+      ok: true,
+      rotulo: "Normal",
+    });
+  });
+});
+
+describe("formatarTempoSemSinal", () => {
+  const agora = new Date("2026-08-28T12:00:00.000Z");
+
+  it("formata minutos, horas e dias", () => {
+    expect(formatarTempoSemSinal("2026-08-28T11:48:00.000Z", agora)).toBe(
+      "há 12 min"
+    );
+    expect(formatarTempoSemSinal("2026-08-28T09:00:00.000Z", agora)).toBe(
+      "há 3 h"
+    );
+    expect(formatarTempoSemSinal("2026-08-26T12:00:00.000Z", agora)).toBe(
+      "há 2 d"
+    );
+  });
+});
+
+describe("corRotuloStatus", () => {
+  it("usa uma cor por rótulo", () => {
+    expect(corRotuloStatus("Normal")).toBe("#4CAF50");
+    expect(corRotuloStatus("Alerta")).toBe("#F44336");
+    expect(corRotuloStatus("Offline")).toBe("#FF9800");
+    expect(corRotuloStatus("Sem dados")).toBe("#9E9E9E");
   });
 });

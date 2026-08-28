@@ -1,7 +1,8 @@
 export type TipoNotificacao =
   | "pedido_acesso"
   | "alerta_galpao"
-  | "acesso_aprovado";
+  | "acesso_aprovado"
+  | "sensor_offline";
 
 export type NotificacaoRow = {
   id: string;
@@ -57,7 +58,8 @@ export function destinoNotificacao(
   }
   if (
     notificacao.tipo === "alerta_galpao" ||
-    notificacao.tipo === "acesso_aprovado"
+    notificacao.tipo === "acesso_aprovado" ||
+    notificacao.tipo === "sensor_offline"
   ) {
     return { tipo: "galpao", galpaoId: notificacao.galpaoId };
   }

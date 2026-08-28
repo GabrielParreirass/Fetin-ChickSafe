@@ -9,15 +9,15 @@ O app é [Expo](https://docs.expo.dev/versions/v54.0.0/) 54 + React Native, com 
 - Cadastro e login com e-mail/senha (Supabase Auth)
 - Perfil do produtor (nome e telefone editáveis; e-mail e CPF fixos)
 - Criar galpão (gera código de convite) ou entrar com código
-- Home com a lista de galpões e status Normal/Alerta de cada um
+- Home com a lista de galpões e status Normal/Alerta/Offline de cada um
 - Ver quem tem acesso ao galpão (Dono quem criou, Funcionário quem entrou com código)
 - Dono gerencia o galpão: nome, limiares de tensão/corrente, aprovar/recusar acesso, remover funcionário e apagar
 - Funcionário pede acesso com código (o dono aprova) e pode sair sozinho
-- Sino de notificações ao lado do nome: pedido de acesso abre a tela para aprovar/recusar
-- Detalhe do galpão com cards de status (Normal / Alerta) segundo os limiares do galpão
-- Dashboard do dono com gráficos de tensão, corrente e fonte vs bateria
-- Atualização ao vivo quando chega `INSERT` em `leituras`
-- Histórico das mudanças, filtrado por galpão, data e tipo (energia, tensão, corrente)
+- Sino de notificações ao lado do nome: pedido de acesso abre a tela para aprovar/recusar; sensor offline avisa quem tem acesso
+- Detalhe do galpão com cards de status (Normal / Alerta) segundo os limiares do galpão; banner se o sensor ficou 5 min sem sinal
+- Histórico das mudanças, filtrado por galpão, data e tipo (energia, tensão, corrente); exportação em PDF
+- Dashboard do dono com gráficos de tensão, corrente e fonte vs bateria; exportação em PDF com resumo, gráficos e tabela
+- Atualização ao vivo na home e no detalhe quando chega `INSERT` em `leituras`
 - Proteção de rotas: área privada só com sessão; logado é mandado para a home
 
 ## Stack
@@ -38,6 +38,7 @@ Definidas em `lib/status.ts` (padrão; o dono pode mudar por galpão):
 - Tensão ok se **> limiar do galpão** (padrão 3 V)
 - Corrente do ventilador ok se **> limiar do galpão** (padrão 50 mA)
 - Qualquer valor no limiar ou abaixo vira **Alerta**
+- Sensor **Offline** se a última leitura tem **5 minutos** ou mais (`MINUTOS_SEM_SINAL`)
 
 ## Arquitetura
 
@@ -47,7 +48,8 @@ Telas (app/) → contextos (auth, AuthGate) → lib/ (regras + acesso a dados) �
 
 - `lib/database.ts` — perfil, galpões, acessos, leituras e notificações
 - `lib/historico.ts` — extrai mudanças entre leituras consecutivas e filtra por data/campo
-- `lib/status.ts` — limiares e rótulos
+- `lib/status.ts` — limiares, rótulos e sensor offline
+- `lib/exportar.ts` — PDF do histórico e do dashboard (resumo, gráficos SVG e tabelas)
 - `lib/acesso.ts` — papéis Dono / Funcionário
 - `lib/galpao.ts` — mapeia galpão e valida limiares
 - `contexts/auth.tsx` — sessão, login, cadastro, logout e edição de conta
@@ -110,7 +112,7 @@ tests/
    - `supabase/extras.sql`
    - `supabase/alter-leituras.sql`
 
-   Se o projeto já existia, rode também `supabase/listar-acessos.sql`, `supabase/gestao.sql`, `supabase/aprovacao.sql`, `supabase/notificacoes.sql` e `supabase/notificacoes-alerta.sql`.
+  Se o projeto já existia, rode também `supabase/listar-acessos.sql`, `supabase/gestao.sql`, `supabase/aprovacao.sql`, `supabase/notificacoes.sql`, `supabase/notificacoes-alerta.sql` e `supabase/sensor-offline.sql`.
 
    Se a lista de acessos do galpão mostrar só quem está logado, rode de novo `supabase/listar-acessos.sql`.
 
@@ -177,4 +179,3 @@ O arquivo `reports/relatorio-testes.html` na sua máquina só está completo se 
 
 - Remover o simulador de ESP32 do app
 - Ligar o MQTT/ESP32 de verdade (sem senha versionada no git)
-- Notificação quando o galpão entrar em alerta

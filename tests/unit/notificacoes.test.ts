@@ -69,6 +69,9 @@ describe("destinoNotificacao", () => {
     expect(
       destinoNotificacao({ tipo: "acesso_aprovado", galpaoId: "galpao-1" })
     ).toEqual({ tipo: "galpao", galpaoId: "galpao-1" });
+    expect(
+      destinoNotificacao({ tipo: "sensor_offline", galpaoId: "galpao-1" })
+    ).toEqual({ tipo: "galpao", galpaoId: "galpao-1" });
   });
 
   it("não navega quando o tipo ainda não tem destino", () => {

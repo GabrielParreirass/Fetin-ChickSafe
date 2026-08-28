@@ -1,4 +1,5 @@
 import { ehDono } from "@/lib/acesso";
+import { compartilharPdfHtml } from "@/lib/compartilhar";
 import { useAuth } from "@/contexts/auth";
 import {
   fatiasEnergia,
@@ -7,6 +8,7 @@ import {
   resumoDashboard,
 } from "@/lib/dashboard";
 import { listarGalpoesDoUsuario, listarLeituras } from "@/lib/database";
+import { htmlDashboard, nomeArquivoPdfDashboard } from "@/lib/exportar";
 import {
   formatarCorrente,
   formatarTensao,
@@ -36,6 +38,7 @@ export default function DashboardGalpaoScreen() {
   const [galpao, setGalpao] = useState<Galpao | null>(null);
   const [leituras, setLeituras] = useState<Leitura[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [exportando, setExportando] = useState(false);
 
   useEffect(() => {
     if (!user || !id) {
@@ -87,6 +90,35 @@ export default function DashboardGalpaoScreen() {
   const serieCorrente = useMemo(() => pontosCorrente(leituras), [leituras]);
   const energia = resumo ? fatiasEnergia(resumo) : [];
 
+  const exportar = async () => {
+    if (!galpao || !resumo) {
+      Alert.alert("Dashboard", "Não há dados para exportar.");
+      return;
+    }
+    try {
+      setExportando(true);
+      await compartilharPdfHtml(
+        htmlDashboard({
+          galpaoNome: galpao.nome,
+          resumo,
+          leituras,
+          limiarTensao: galpao.limiarTensao,
+          limiarCorrente: galpao.limiarCorrente,
+        }),
+        "Exportar dashboard",
+        nomeArquivoPdfDashboard(galpao.nome)
+      );
+    } catch (error) {
+      const mensagem =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível exportar o dashboard.";
+      Alert.alert("Dashboard", mensagem);
+    } finally {
+      setExportando(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#f9ca0a" barStyle="dark-content" />
@@ -99,6 +131,19 @@ export default function DashboardGalpaoScreen() {
           <MaterialIcons name="arrow-back" size={26} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>Dashboard</Text>
+        <TouchableOpacity
+          onPress={() => void exportar()}
+          style={styles.exportButton}
+          disabled={carregando || exportando || !resumo}
+          hitSlop={12}
+          accessibilityLabel="Exportar dashboard"
+        >
+          {exportando ? (
+            <ActivityIndicator color="#333" size="small" />
+          ) : (
+            <MaterialIcons name="picture-as-pdf" size={26} color="#333" />
+          )}
+        </TouchableOpacity>
       </View>
 
       <View style={styles.body}>
@@ -268,9 +313,15 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   title: {
+    flex: 1,
     fontSize: 24,
     fontWeight: "bold",
     color: "#333",
+  },
+  exportButton: {
+    padding: 4,
+    minWidth: 34,
+    alignItems: "center",
   },
   body: {
     flex: 1,

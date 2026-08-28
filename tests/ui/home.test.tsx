@@ -1,7 +1,8 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react-native";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react-native";
 import { Alert } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "@/contexts/auth";
+import { supabase } from "@/lib/supabase";
 import {
   apagarGalpao,
   aprovarAcessoDoGalpao,
@@ -12,6 +13,7 @@ import {
   listarAcessosDoGalpao,
   listarGalpoesDoUsuario,
   listarNotificacoes,
+  notificarSensorOffline,
   removerAcessoDoGalpao,
   sairDoGalpao,
 } from "@/lib/database";
@@ -22,6 +24,7 @@ import {
   galpaoNortePendente,
   leituraAlerta,
   leituraNormal,
+  leituraOffline,
   userAuthPadrao,
   usuarioPadrao,
 } from "./helpers/fakes";
@@ -71,14 +74,12 @@ jest.mock("@/lib/database", () => ({
   sairDoGalpao: jest.fn(),
   listarNotificacoes: jest.fn(),
   marcarNotificacaoLida: jest.fn(),
+  notificarSensorOffline: jest.fn(),
 }));
 
 jest.mock("@/lib/supabase", () => ({
   supabase: {
-    channel: jest.fn(() => ({
-      on: jest.fn().mockReturnThis(),
-      subscribe: jest.fn(),
-    })),
+    channel: jest.fn(),
     removeChannel: jest.fn(),
   },
 }));
@@ -96,8 +97,29 @@ jest.mock("@expo/vector-icons/MaterialIcons", () => {
 const signOut = jest.fn();
 
 describe("HomeLogadaScreen", () => {
+  let leituraInsert: ((payload: { new: unknown }) => void) | undefined;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    leituraInsert = undefined;
+    (supabase.channel as jest.Mock).mockImplementation(() => {
+      const channel: { on: jest.Mock; subscribe: jest.Mock } = {
+        on: jest.fn(
+          (
+            _evento: string,
+            filtro: { table?: string },
+            callback: (payload: { new: unknown }) => void
+          ) => {
+            if (filtro?.table === "leituras") {
+              leituraInsert = callback;
+            }
+            return channel;
+          }
+        ),
+        subscribe: jest.fn(),
+      };
+      return channel;
+    });
     jest.spyOn(Alert, "alert").mockImplementation(() => {});
     (useAuth as jest.Mock).mockReturnValue({
       usuario: usuarioPadrao,
@@ -108,6 +130,7 @@ describe("HomeLogadaScreen", () => {
     (listarAcessosDoGalpao as jest.Mock).mockResolvedValue([]);
     (buscarLeiturasAprovadas as jest.Mock).mockResolvedValue({});
     (listarNotificacoes as jest.Mock).mockResolvedValue([]);
+    (notificarSensorOffline as jest.Mock).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -520,6 +543,38 @@ describe("HomeLogadaScreen", () => {
 
     expect(await screen.findByText("Alerta")).toBeOnTheScreen();
     expect(screen.getByText("Bateria · 2.5 V · 20 mA")).toBeOnTheScreen();
+  });
+
+  it("atualiza o status quando chega uma leitura nova", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([galpaoNorte]);
+    (buscarLeiturasAprovadas as jest.Mock).mockResolvedValue({
+      "galpao-1": leituraNormal,
+    });
+    render(<HomeLogadaScreen />);
+    expect(await screen.findByText("Normal")).toBeOnTheScreen();
+    await waitFor(() => {
+      expect(leituraInsert).toBeDefined();
+    });
+
+    act(() => {
+      leituraInsert?.({ new: leituraAlerta });
+    });
+
+    expect(await screen.findByText("Alerta")).toBeOnTheScreen();
+    expect(screen.getByText("Bateria · 2.5 V · 20 mA")).toBeOnTheScreen();
+  });
+
+  it("mostra Offline e notifica quando a leitura está velha", async () => {
+    (listarGalpoesDoUsuario as jest.Mock).mockResolvedValue([galpaoNorte]);
+    (buscarLeiturasAprovadas as jest.Mock).mockResolvedValue({
+      "galpao-1": leituraOffline,
+    });
+    render(<HomeLogadaScreen />);
+
+    expect(await screen.findByText("Offline")).toBeOnTheScreen();
+    await waitFor(() => {
+      expect(notificarSensorOffline).toHaveBeenCalledWith("galpao-1");
+    });
   });
 
   it("não abre o detalhe enquanto o acesso está pendente", async () => {

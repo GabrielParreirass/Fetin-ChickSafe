@@ -3,6 +3,7 @@ import { Alert } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/contexts/auth";
 import { listarGalpoesDoUsuario, listarLeituras } from "@/lib/database";
+import { compartilharPdfHtml } from "@/lib/compartilhar";
 import HistoricoScreen from "@/app/(private)/historico/page";
 import { formatarDataAcessivel } from "@/lib/calendario";
 import {
@@ -41,6 +42,10 @@ jest.mock("@/lib/database", () => ({
   listarLeituras: jest.fn(),
 }));
 
+jest.mock("@/lib/compartilhar", () => ({
+  compartilharPdfHtml: jest.fn(),
+}));
+
 jest.mock("@expo/vector-icons/MaterialIcons", () => {
   const React = require("react");
   const { Text } = require("react-native");
@@ -69,7 +74,7 @@ describe("HistoricoScreen", () => {
     render(<HistoricoScreen />);
 
     expect(
-      await screen.findByText(/Nenhuma mudança registrada ainda/)
+      await screen.findByText(/Ligue o simulador ou aguarde o ESP32/)
     ).toBeOnTheScreen();
   });
 
@@ -159,13 +164,14 @@ describe("HistoricoScreen", () => {
     render(<HistoricoScreen />);
     expect(await screen.findByText("Energia")).toBeOnTheScreen();
 
-    fireEvent.press(screen.getByLabelText("Escolher data inicial"));
+    fireEvent.press(screen.getByLabelText("Escolher data final"));
     expect(screen.getByText("Seg")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Mês anterior")).toBeOnTheScreen();
+    fireEvent.press(screen.getByLabelText("Mês anterior"));
 
-    const dia20 = new Date();
-    dia20.setDate(20);
-    fireEvent.press(screen.getByLabelText(formatarDataAcessivel(dia20)));
+    const noMesAnterior = new Date();
+    noMesAnterior.setMonth(noMesAnterior.getMonth() - 1);
+    noMesAnterior.setDate(15);
+    fireEvent.press(screen.getByLabelText(formatarDataAcessivel(noMesAnterior)));
 
     expect(
       await screen.findByText("Nenhuma mudança neste filtro.")
@@ -175,12 +181,50 @@ describe("HistoricoScreen", () => {
   it("abre o calendário da data final", async () => {
     (listarLeituras as jest.Mock).mockResolvedValue([leituraNormal]);
     render(<HistoricoScreen />);
-    await screen.findByText(/Nenhuma mudança registrada ainda/);
+    await screen.findByText(/Ligue o simulador ou aguarde o ESP32/);
 
     fireEvent.press(screen.getByLabelText("Escolher data final"));
 
     expect(screen.getByLabelText("Mês anterior")).toBeOnTheScreen();
     expect(screen.getByLabelText("Próximo mês")).toBeOnTheScreen();
     expect(screen.getByText("Seg")).toBeOnTheScreen();
+  });
+
+  it("exporta o histórico filtrado em PDF", async () => {
+    (listarLeituras as jest.Mock).mockResolvedValue([
+      leituraNormal,
+      leituraAlerta,
+    ]);
+    (compartilharPdfHtml as jest.Mock).mockResolvedValue(undefined);
+    render(<HistoricoScreen />);
+    expect(await screen.findByText("Energia")).toBeOnTheScreen();
+
+    fireEvent.press(screen.getByLabelText("Exportar histórico"));
+
+    await waitFor(() => {
+      expect(compartilharPdfHtml).toHaveBeenCalled();
+    });
+    const [html, titulo] = (compartilharPdfHtml as jest.Mock).mock.calls[0];
+    expect(titulo).toBe("Exportar histórico");
+    expect(
+      (compartilharPdfHtml as jest.Mock).mock.calls[0][2]
+    ).toMatch(/^historico-chicksafe-.*\.html$/);
+    expect(html).toContain("ChickSafe — Histórico");
+    expect(html).toContain("Galpão Norte");
+    expect(html).toContain("Energia");
+  });
+
+  it("avisa quando não há mudanças para exportar", async () => {
+    (listarLeituras as jest.Mock).mockResolvedValue([leituraNormal]);
+    render(<HistoricoScreen />);
+    await screen.findByText(/Ligue o simulador ou aguarde o ESP32/);
+
+    fireEvent.press(screen.getByLabelText("Exportar histórico"));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      "Histórico",
+      "Não há mudanças para exportar neste filtro."
+    );
+    expect(compartilharPdfHtml).not.toHaveBeenCalled();
   });
 });
