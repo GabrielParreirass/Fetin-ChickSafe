@@ -364,6 +364,16 @@ export async function listarNotificacoes(userId: string): Promise<Notificacao[]>
   return (data ?? []).map(mapearNotificacao);
 }
 
+export async function notificarSensorOffline(galpaoId: string): Promise<void> {
+  const { error } = await supabase.rpc("notificar_sensor_offline", {
+    p_galpao_id: galpaoId,
+  });
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function marcarNotificacaoLida(id: string): Promise<void> {
   const { error } = await supabase
     .from("notificacoes")

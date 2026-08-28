@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react-
 import { Alert } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/contexts/auth";
-import { buscarUltimaLeitura, listarAcessosDoGalpao, listarGalpoesDoUsuario, listarNotificacoes } from "@/lib/database";
+import { buscarUltimaLeitura, listarAcessosDoGalpao, listarGalpoesDoUsuario, listarNotificacoes, notificarSensorOffline } from "@/lib/database";
 import { supabase } from "@/lib/supabase";
 import GalpaoDetalheScreen from "@/app/(private)/galpao/[id]/page";
 import {
@@ -11,6 +11,7 @@ import {
   galpaoSul,
   leituraAlerta,
   leituraNormal,
+  leituraOffline,
   userAuthPadrao,
   usuarioPadrao,
 } from "./helpers/fakes";
@@ -50,6 +51,7 @@ jest.mock("@/lib/database", () => ({
   sairDoGalpao: jest.fn(),
   listarNotificacoes: jest.fn(),
   marcarNotificacaoLida: jest.fn(),
+  notificarSensorOffline: jest.fn(),
 }));
 
 jest.mock("@/lib/supabase", () => ({
@@ -105,6 +107,7 @@ describe("GalpaoDetalheScreen", () => {
     ]);
     (listarAcessosDoGalpao as jest.Mock).mockResolvedValue([]);
     (listarNotificacoes as jest.Mock).mockResolvedValue([]);
+    (notificarSensorOffline as jest.Mock).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -136,6 +139,17 @@ describe("GalpaoDetalheScreen", () => {
     expect(await screen.findByText("Bateria")).toBeOnTheScreen();
     expect(screen.getByText("2.5 V")).toBeOnTheScreen();
     expect(screen.getByText("20 mA")).toBeOnTheScreen();
+  });
+
+  it("mostra banner de sensor offline quando a leitura está velha", async () => {
+    (buscarUltimaLeitura as jest.Mock).mockResolvedValue(leituraOffline);
+    render(<GalpaoDetalheScreen />);
+
+    expect(await screen.findByText("Sensor offline")).toBeOnTheScreen();
+    expect(screen.getByText(/Sem sinal/)).toBeOnTheScreen();
+    await waitFor(() => {
+      expect(notificarSensorOffline).toHaveBeenCalledWith("galpao-1");
+    });
   });
 
   it("abre o histórico do galpão selecionado", async () => {

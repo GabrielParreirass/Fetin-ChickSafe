@@ -7,16 +7,19 @@ import {
   criarGalpao,
   entrarGalpaoPorCodigo,
   listarGalpoesDoUsuario,
+  notificarSensorOffline,
 } from "@/lib/database";
 import { acessoAprovado } from "@/lib/galpao";
 import {
+  corRotuloStatus,
   resumoLeitura,
-  statusGeralLeitura,
+  statusGalpao,
 } from "@/lib/status";
+import { supabase } from "@/lib/supabase";
 import type { Galpao, Leitura } from "@/lib/types";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Href, router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -40,8 +43,19 @@ export default function HomeLogadaScreen() {
   const [codigo, setCodigo] = useState("");
   const [nomeGalpao, setNomeGalpao] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [agora, setAgora] = useState(() => new Date());
+  const galpoesRef = useRef<Galpao[]>([]);
 
   const primeiroNome = (usuario?.nome ?? "produtor").split(" ")[0];
+
+  useEffect(() => {
+    galpoesRef.current = galpoes;
+  }, [galpoes]);
+
+  useEffect(() => {
+    const id = setInterval(() => setAgora(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const carregar = useCallback(async () => {
     if (!user) {
@@ -51,8 +65,28 @@ export default function HomeLogadaScreen() {
     try {
       setCarregando(true);
       const lista = await listarGalpoesDoUsuario(user.id);
+      const atuais = await buscarLeiturasAprovadas(lista);
       setGalpoes(lista);
-      setLeituras(await buscarLeiturasAprovadas(lista));
+      galpoesRef.current = lista;
+      setLeituras(atuais);
+      setAgora(new Date());
+      const instante = new Date();
+      await Promise.all(
+        lista
+          .filter(acessoAprovado)
+          .filter((item) => {
+            const leitura = atuais[item.id] ?? null;
+            return statusGalpao(
+              leitura,
+              item.limiarTensao,
+              item.limiarCorrente,
+              instante
+            ).rotulo === "Offline";
+          })
+          .map((item) =>
+            notificarSensorOffline(item.id).catch(() => undefined)
+          )
+      );
     } catch (error) {
       const mensagem =
         error instanceof Error ? error.message : "Falha ao carregar galpões.";
@@ -72,6 +106,38 @@ export default function HomeLogadaScreen() {
       carregar();
     }, [carregar])
   );
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const channel = supabase.channel(`home-leituras-${user.id}`);
+    channel.on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "leituras",
+      },
+      (payload) => {
+        const nova = payload.new as Leitura;
+        const galpao = galpoesRef.current.find(
+          (item) => item.id === nova.galpao_id && acessoAprovado(item)
+        );
+        if (!galpao) {
+          return;
+        }
+        setLeituras((atual) => ({ ...atual, [nova.galpao_id]: nova }));
+        setAgora(new Date());
+      }
+    );
+    channel.subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const abrirGalpao = (galpao: Galpao) => {
     if (!acessoAprovado(galpao)) {
@@ -196,21 +262,18 @@ export default function HomeLogadaScreen() {
               const leitura = leituras[item.id] ?? null;
               const geral = pendente
                 ? null
-                : statusGeralLeitura(
+                : statusGalpao(
                     leitura,
                     item.limiarTensao,
-                    item.limiarCorrente
+                    item.limiarCorrente,
+                    agora
                   );
               const rotuloStatus = pendente
                 ? "Aguardando aprovação"
                 : geral?.rotulo ?? "Sem dados";
               const corStatus = pendente
                 ? "#F9A825"
-                : geral?.rotulo === "Normal"
-                  ? "#4CAF50"
-                  : geral?.rotulo === "Alerta"
-                    ? "#F44336"
-                    : "#9E9E9E";
+                : corRotuloStatus(geral?.rotulo ?? "Sem dados");
 
               return (
               <View style={styles.galpaoCard}>

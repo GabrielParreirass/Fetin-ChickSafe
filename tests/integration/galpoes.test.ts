@@ -12,6 +12,7 @@ import {
   criarGalpao,
   entrarGalpaoPorCodigo,
   listarGalpoesDoUsuario,
+  notificarSensorOffline,
   recusarAcessoDoGalpao,
   removerAcessoDoGalpao,
   sairDoGalpao,
@@ -254,5 +255,27 @@ describe("sairDoGalpao", () => {
     expect(supabaseMocks().rpc).toHaveBeenCalledWith("sair_do_galpao", {
       p_galpao_id: "galpao-1",
     });
+  });
+});
+
+describe("notificarSensorOffline", () => {
+  beforeEach(() => {
+    resetSupabaseMocks();
+  });
+
+  it("chama a RPC do galpão", async () => {
+    supabaseMocks().rpc.mockResolvedValue({ data: null, error: null });
+
+    await expect(notificarSensorOffline("galpao-1")).resolves.toBeUndefined();
+    expect(supabaseMocks().rpc).toHaveBeenCalledWith("notificar_sensor_offline", {
+      p_galpao_id: "galpao-1",
+    });
+  });
+
+  it("propaga erro da RPC", async () => {
+    const erro = { message: "Sem acesso a este galpão" };
+    supabaseMocks().rpc.mockResolvedValue({ data: null, error: erro });
+
+    await expect(notificarSensorOffline("galpao-1")).rejects.toEqual(erro);
   });
 });

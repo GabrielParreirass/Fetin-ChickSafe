@@ -5,16 +5,20 @@ import { ehDono } from "@/lib/acesso";
 import {
   buscarUltimaLeitura,
   listarGalpoesDoUsuario,
+  notificarSensorOffline,
 } from "@/lib/database";
 import { acessoAprovado } from "@/lib/galpao";
 import {
   correnteOk,
   formatarCorrente,
+  formatarTempoSemSinal,
   formatarTensao,
   LIMIAR_CORRENTE_MA,
   LIMIAR_TENSAO_V,
   rotuloEnergia,
+  statusGalpao,
   tensaoOk,
+  corRotuloStatus,
 } from "@/lib/status";
 import { supabase } from "@/lib/supabase";
 import type { Galpao, Leitura } from "@/lib/types";
@@ -99,6 +103,7 @@ export default function GalpaoDetalheScreen() {
   const [leitura, setLeitura] = useState<Leitura | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
+  const [agora, setAgora] = useState(() => new Date());
 
   const primeiroNome = (usuario?.nome ?? "produtor").split(" ")[0];
   const cards = cardsDaLeitura(
@@ -106,10 +111,29 @@ export default function GalpaoDetalheScreen() {
     ambienteSelecionado?.limiarTensao,
     ambienteSelecionado?.limiarCorrente
   );
+  const geral = statusGalpao(
+    leitura,
+    ambienteSelecionado?.limiarTensao,
+    ambienteSelecionado?.limiarCorrente,
+    agora
+  );
+  const offline = geral.rotulo === "Offline";
 
-  const carregarLeitura = useCallback(async (galpaoId: string) => {
-    const atual = await buscarUltimaLeitura(galpaoId);
+  const carregarLeitura = useCallback(async (galpao: Galpao) => {
+    const atual = await buscarUltimaLeitura(galpao.id);
     setLeitura(atual);
+    const instante = new Date();
+    setAgora(instante);
+    if (
+      statusGalpao(
+        atual,
+        galpao.limiarTensao,
+        galpao.limiarCorrente,
+        instante
+      ).rotulo === "Offline"
+    ) {
+      void notificarSensorOffline(galpao.id).catch(() => undefined);
+    }
   }, []);
 
   const recarregarGalpoes = useCallback(
@@ -179,7 +203,7 @@ export default function GalpaoDetalheScreen() {
           null;
         setAmbienteSelecionado(atual);
         if (atual && acessoAprovado(atual)) {
-          await carregarLeitura(atual.id);
+          await carregarLeitura(atual);
         }
       } catch (error) {
         const mensagem =
@@ -214,6 +238,7 @@ export default function GalpaoDetalheScreen() {
       },
       (payload) => {
         setLeitura(payload.new as Leitura);
+        setAgora(new Date());
       }
     );
     channel.subscribe();
@@ -223,12 +248,10 @@ export default function GalpaoDetalheScreen() {
     };
   }, [ambienteSelecionado]);
 
-  const getIndicadorCor = () => {
-    if (!leitura) {
-      return "#9E9E9E";
-    }
-    return cards.every((card) => card.ok) ? "green" : "#F44336";
-  };
+  useEffect(() => {
+    const id = setInterval(() => setAgora(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const selecionarAmbiente = async (ambiente: Galpao) => {
     setAmbienteSelecionado(ambiente);
@@ -238,7 +261,7 @@ export default function GalpaoDetalheScreen() {
       return;
     }
     try {
-      await carregarLeitura(ambiente.id);
+      await carregarLeitura(ambiente);
     } catch (error) {
       const mensagem =
         error instanceof Error ? error.message : "Falha ao atualizar leituras.";
@@ -270,6 +293,9 @@ export default function GalpaoDetalheScreen() {
   const donoDoGalpao = Boolean(
     ambienteSelecionado && ehDono(ambienteSelecionado.papel)
   );
+  const corIndicador = aguardando
+    ? "#F9A825"
+    : corRotuloStatus(geral.rotulo);
 
   return (
     <View style={styles.container}>
@@ -292,7 +318,7 @@ export default function GalpaoDetalheScreen() {
         <View
           style={[
             styles.statusIndicator,
-            { backgroundColor: getIndicadorCor() },
+            { backgroundColor: corIndicador },
           ]}
         />
       </View>
@@ -373,18 +399,35 @@ export default function GalpaoDetalheScreen() {
                   Aguardando aprovação do dono para ver as leituras deste galpão.
                 </Text>
               ) : (
-                cards.map((card) => (
-                  <View
-                    key={card.campo}
-                    style={[
-                      styles.card,
-                      { backgroundColor: card.ok ? "#4CAF50" : "#F44336" },
-                    ]}
-                  >
-                    <Text style={styles.cardTitle}>{card.titulo}</Text>
-                    <Text style={styles.cardStatus}>{card.valor}</Text>
-                  </View>
-                ))
+                <>
+                  {offline && leitura ? (
+                    <View style={styles.offlineBanner}>
+                      <Text style={styles.offlineTitulo}>Sensor offline</Text>
+                      <Text style={styles.offlineTexto}>
+                        Sem sinal {formatarTempoSemSinal(leitura.criado_em, agora)}.
+                        Últimos valores abaixo.
+                      </Text>
+                    </View>
+                  ) : null}
+                  {cards.map((card) => (
+                    <View
+                      key={card.campo}
+                      style={[
+                        styles.card,
+                        {
+                          backgroundColor: offline
+                            ? "#FF9800"
+                            : card.ok
+                              ? "#4CAF50"
+                              : "#F44336",
+                        },
+                      ]}
+                    >
+                      <Text style={styles.cardTitle}>{card.titulo}</Text>
+                      <Text style={styles.cardStatus}>{card.valor}</Text>
+                    </View>
+                  ))}
+                </>
               )}
             </ScrollView>
 
@@ -525,6 +568,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 24,
     marginTop: 12,
+  },
+  offlineBanner: {
+    backgroundColor: "#FFF3E0",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+  },
+  offlineTitulo: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#E65100",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  offlineTexto: {
+    fontSize: 14,
+    color: "#E65100",
+    textAlign: "center",
+    lineHeight: 20,
   },
   card: {
     borderRadius: 15,

@@ -38,13 +38,17 @@ export const galpaoNortePendente = {
   statusAcesso: "pendente" as const,
 };
 
+const agoraIso = new Date().toISOString();
+const cincoMinutosDepois = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+const dezMinutosAtras = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
 export const leituraNormal = {
   id: 1,
   galpao_id: "galpao-1",
   energia: "Fonte" as const,
   tensao: 4.2,
   corrente: 80,
-  criado_em: "2026-01-01T10:00:00.000Z",
+  criado_em: agoraIso,
 };
 
 export const leituraAlerta = {
@@ -53,5 +57,11 @@ export const leituraAlerta = {
   energia: "Bateria" as const,
   tensao: 2.5,
   corrente: 20,
-  criado_em: "2026-01-01T10:05:00.000Z",
+  criado_em: cincoMinutosDepois,
+};
+
+export const leituraOffline = {
+  ...leituraNormal,
+  id: 99,
+  criado_em: dezMinutosAtras,
 };

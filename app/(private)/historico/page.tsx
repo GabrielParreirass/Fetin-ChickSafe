@@ -1,5 +1,6 @@
 import { useAuth } from "@/contexts/auth";
 import { formatarDataHora } from "@/app/utils/historico";
+import { compartilharPdfHtml } from "@/lib/compartilhar";
 import {
   avancarMes,
   celulasDoMes,
@@ -11,6 +12,7 @@ import {
   rotuloMesAno,
 } from "@/lib/calendario";
 import { listarGalpoesDoUsuario, listarLeituras } from "@/lib/database";
+import { htmlHistorico, nomeArquivoHtmlHistorico } from "@/lib/exportar";
 import {
   extrairMudancas,
   filtrarMudancas,
@@ -53,6 +55,7 @@ export default function HistoricoScreen() {
     null
   );
   const [mesVisivel, setMesVisivel] = useState(() => inicioDoMes(new Date()));
+  const [exportando, setExportando] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -140,6 +143,29 @@ export default function HistoricoScreen() {
     setAlvoCalendario(null);
   };
 
+  const exportar = async () => {
+    if (filtrados.length === 0) {
+      Alert.alert("Histórico", "Não há mudanças para exportar neste filtro.");
+      return;
+    }
+    try {
+      setExportando(true);
+      await compartilharPdfHtml(
+        htmlHistorico(filtrados),
+        "Exportar histórico",
+        nomeArquivoHtmlHistorico()
+      );
+    } catch (error) {
+      const mensagem =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível exportar o histórico.";
+      Alert.alert("Histórico", mensagem);
+    } finally {
+      setExportando(false);
+    }
+  };
+
   const selecionada =
     alvoCalendario === "inicio"
       ? dataInicio
@@ -160,6 +186,19 @@ export default function HistoricoScreen() {
           <MaterialIcons name="arrow-back" size={26} color="#333" />
         </TouchableOpacity>
         <Text style={styles.title}>Histórico</Text>
+        <TouchableOpacity
+          onPress={() => void exportar()}
+          style={styles.exportButton}
+          disabled={carregando || exportando}
+          hitSlop={12}
+          accessibilityLabel="Exportar histórico"
+        >
+          {exportando ? (
+            <ActivityIndicator color="#333" size="small" />
+          ) : (
+            <MaterialIcons name="picture-as-pdf" size={26} color="#333" />
+          )}
+        </TouchableOpacity>
       </View>
 
       <View style={styles.body}>
@@ -341,9 +380,15 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   title: {
+    flex: 1,
     fontSize: 24,
     fontWeight: "bold",
     color: "#333",
+  },
+  exportButton: {
+    padding: 4,
+    minWidth: 34,
+    alignItems: "center",
   },
   body: {
     flex: 1,
