@@ -10,6 +10,7 @@ import {
   buscarUsuario,
   garantirPerfil,
   atualizarPerfil,
+  salvarPushToken,
 } from "@/lib/database";
 import type { Usuario } from "@/lib/types";
 import {
@@ -266,5 +267,33 @@ describe("atualizarPerfil", () => {
     await expect(
       atualizarPerfil("user-1", { nome: "Maria", telefone: "31999990000" })
     ).rejects.toEqual(erro);
+  });
+});
+
+describe("salvarPushToken", () => {
+  beforeEach(() => {
+    resetSupabaseMocks();
+  });
+
+  it("grava o token Expo no perfil", async () => {
+    const consulta = createMockQuery({ data: null, error: null });
+    supabaseMocks().from.mockReturnValue(consulta);
+
+    await expect(
+      salvarPushToken("user-1", "  ExponentPushToken[abc]  ")
+    ).resolves.toBeUndefined();
+    expect(supabaseMocks().from).toHaveBeenCalledWith("usuarios");
+    expect(consulta.update).toHaveBeenCalledWith({
+      push_token: "ExponentPushToken[abc]",
+    });
+    expect(consulta.eq).toHaveBeenCalledWith("id", "user-1");
+  });
+
+  it("limpa o token quando vem vazio", async () => {
+    const consulta = createMockQuery({ data: null, error: null });
+    supabaseMocks().from.mockReturnValue(consulta);
+
+    await expect(salvarPushToken("user-1", "  ")).resolves.toBeUndefined();
+    expect(consulta.update).toHaveBeenCalledWith({ push_token: null });
   });
 });

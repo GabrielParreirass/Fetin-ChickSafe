@@ -118,6 +118,21 @@ export async function atualizarPerfil(
   return data;
 }
 
+export async function salvarPushToken(
+  userId: string,
+  token: string | null
+): Promise<void> {
+  const pushToken = token?.trim() || null;
+  const { error } = await supabase
+    .from("usuarios")
+    .update({ push_token: pushToken })
+    .eq("id", userId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function listarGalpoesDoUsuario(userId: string): Promise<Galpao[]> {
   const { data, error } = await supabase
     .from("usuario_galpoes")

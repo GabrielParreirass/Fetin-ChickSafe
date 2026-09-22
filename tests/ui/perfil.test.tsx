@@ -17,6 +17,10 @@ jest.mock("@/contexts/auth", () => ({
   useAuth: jest.fn(),
 }));
 
+jest.mock("@/contexts/push", () => ({
+  usePush: () => ({ token: null, erro: null }),
+}));
+
 jest.mock("@/lib/database", () => ({
   formatarCpf: (cpf: string) =>
     cpf === "12345678900" ? "123.456.789-00" : cpf,

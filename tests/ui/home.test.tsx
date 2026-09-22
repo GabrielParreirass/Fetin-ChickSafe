@@ -57,6 +57,7 @@ jest.mock("@/contexts/simulador", () => ({
     ultima: null,
     iniciar: jest.fn(),
     parar: jest.fn(),
+    testarAlerta: jest.fn(),
   }),
 }));
 

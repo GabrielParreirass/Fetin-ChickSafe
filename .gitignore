@@ -34,6 +34,9 @@ yarn-error.*
 .env
 .env*.local
 
+# Firebase FCM service account (chave privada — não o google-services.json)
+*firebase-adminsdk*.json
+
 # tests
 coverage/
 reports/

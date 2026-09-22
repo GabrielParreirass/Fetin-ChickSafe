@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/auth";
+import { usePush } from "@/contexts/push";
 import { formatarCpf } from "@/lib/database";
 import { mensagemDeErro } from "@/lib/erros";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -17,6 +18,7 @@ import {
 
 export default function PerfilScreen() {
   const { usuario, atualizarConta } = useAuth();
+  const { token: tokenPush, erro: erroPush } = usePush();
   const [nome, setNome] = useState(usuario?.nome ?? "");
   const [telefone, setTelefone] = useState(usuario?.telefone ?? "");
   const [senha, setSenha] = useState("");
@@ -143,6 +145,17 @@ export default function PerfilScreen() {
           onChangeText={atualizarCampo(setConfirmarSenha)}
         />
 
+        <Text style={styles.label}>Token push (teste)</Text>
+        <Text selectable style={styles.tokenPush}>
+          {tokenPush ??
+            erroPush ??
+            "Ainda sem token. Use o development build, não o Expo Go."}
+        </Text>
+        <Text style={styles.ajuda}>
+          Copie este valor para enviar uma notificação de teste com o app
+          fechado.
+        </Text>
+
         {erro ? <Text style={styles.erro}>{erro}</Text> : null}
         {aviso ? <Text style={styles.aviso}>{aviso}</Text> : null}
 
@@ -215,6 +228,15 @@ const styles = StyleSheet.create({
     color: "#777",
     marginTop: -6,
     marginBottom: 16,
+  },
+  tokenPush: {
+    width: "100%",
+    backgroundColor: "#f1f1f1",
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 13,
+    color: "#333",
+    marginBottom: 6,
   },
   erro: {
     width: "100%",

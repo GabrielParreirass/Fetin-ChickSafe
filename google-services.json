@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "639913035192",
+    "project_id": "fetin-chicksafe",
+    "storage_bucket": "fetin-chicksafe.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:639913035192:android:8b2f89cd638d3ebf4cfb4d",
+        "android_client_info": {
+          "package_name": "com.fetin.chicksafe"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAf71OEHtWrWzQGI7okNYfRr5iF0pMw8v4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

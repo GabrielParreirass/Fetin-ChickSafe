@@ -35,7 +35,7 @@ import {
 
 export default function HomeLogadaScreen() {
   const { usuario, user, signOut } = useAuth();
-  const { ativo, ultima, iniciar, parar } = useSimulador();
+  const { ativo, ultima, iniciar, parar, testarAlerta } = useSimulador();
   const [galpoes, setGalpoes] = useState<Galpao[]>([]);
   const [leituras, setLeituras] = useState<Record<string, Leitura | null>>({});
   const [carregando, setCarregando] = useState(true);
@@ -340,6 +340,12 @@ export default function HomeLogadaScreen() {
               {Math.round(Number(ultima.corrente))} mA
             </Text>
           ) : null}
+          <TouchableOpacity
+            style={[styles.secondaryButton, styles.footerButton]}
+            onPress={() => void testarAlerta()}
+          >
+            <Text style={styles.secondaryButtonText}>Testar alerta no galpão</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.secondaryButton, styles.footerButton]}
             onPress={() => setModal("entrar")}

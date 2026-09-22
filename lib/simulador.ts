@@ -54,3 +54,34 @@ export async function simularTickEsp32(galpoes: Galpao[]): Promise<Leitura> {
   const escolhido = alvos[Math.floor(Math.random() * alvos.length)];
   return publicarLeituraEsp32(gerarLeituraEsp32(escolhido.id));
 }
+
+export function galpaoParaTesteAlerta(galpoes: Galpao[]): Galpao | null {
+  return galpoes.find((galpao) => galpao.statusAcesso === "aprovado") ?? null;
+}
+
+export function leituraNormalDeTeste(
+  galpao: Pick<Galpao, "id" | "limiarTensao" | "limiarCorrente">
+): Omit<Leitura, "id" | "criado_em"> {
+  return {
+    galpao_id: galpao.id,
+    energia: "Fonte",
+    tensao: Number(galpao.limiarTensao) + 1,
+    corrente: Number(galpao.limiarCorrente) + 10,
+  };
+}
+
+export function leituraAlertaDeTeste(
+  galpao: Pick<Galpao, "id" | "limiarTensao" | "limiarCorrente">
+): Omit<Leitura, "id" | "criado_em"> {
+  return {
+    galpao_id: galpao.id,
+    energia: "Bateria",
+    tensao: 0,
+    corrente: 0,
+  };
+}
+
+export async function publicarEntradaEmAlerta(galpao: Galpao): Promise<Leitura> {
+  await publicarLeituraEsp32(leituraNormalDeTeste(galpao));
+  return publicarLeituraEsp32(leituraAlertaDeTeste(galpao));
+}
