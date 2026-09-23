@@ -31,6 +31,13 @@ export function traduzirErroAuth(mensagem: string): string {
   if (texto.includes("unable to validate email") || texto.includes("invalid email")) {
     return "Informe um e-mail válido.";
   }
+  if (
+    texto.includes("rate limit") ||
+    texto.includes("for security purposes") ||
+    texto.includes("only request this after")
+  ) {
+    return "Aguarde um pouco antes de pedir outro e-mail.";
+  }
 
   return mensagem;
 }

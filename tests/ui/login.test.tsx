@@ -1,5 +1,4 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react-native";
-import { Alert } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "@/contexts/auth";
 import LoginScreen from "@/app/(auth)/login/page";
@@ -22,12 +21,7 @@ const signIn = jest.fn();
 describe("LoginScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(Alert, "alert").mockImplementation(() => {});
     (useAuth as jest.Mock).mockReturnValue({ signIn });
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
   });
 
   it("renderiza os campos de e-mail, senha e o botão Entrar", () => {
@@ -82,14 +76,15 @@ describe("LoginScreen", () => {
     expect(router.navigate).toHaveBeenCalledWith("/(auth)/cadastro/page");
   });
 
-  it("explica que recuperar senha ainda não está disponível", () => {
+  it("abre a recuperação com o e-mail já digitado", () => {
     render(<LoginScreen />);
 
+    fireEvent.changeText(screen.getByPlaceholderText("E-mail"), "maria@chicksafe.app");
     fireEvent.press(screen.getByText("Esqueci minha senha"));
 
-    expect(Alert.alert).toHaveBeenCalledWith(
-      "Recuperar senha",
-      "Ainda não está disponível. Peça a um colega com acesso ao painel do Supabase."
-    );
+    expect(router.navigate).toHaveBeenCalledWith({
+      pathname: "/(auth)/recuperar/page",
+      params: { email: "maria@chicksafe.app" },
+    });
   });
 });

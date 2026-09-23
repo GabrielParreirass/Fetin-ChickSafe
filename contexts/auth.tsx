@@ -4,11 +4,19 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import * as Linking from "expo-linking";
 import { supabase } from "@/lib/supabase";
+import {
+  extrairCodigoRecuperacao,
+  linkEhRecuperacaoSenha,
+  urlRedirecionamentoConfirmacao,
+  urlRedirecionamentoSenha,
+} from "@/lib/recuperar-senha";
 import {
   atualizarPerfil,
   entrarGalpaoPorCodigo,
@@ -33,11 +41,16 @@ type AuthContextValue = {
   signIn: (email: string, senha: string) => Promise<void>;
   signUp: (input: SignUpInput) => Promise<{ needsConfirmation: boolean }>;
   signOut: () => Promise<void>;
+  recuperacaoPendente: boolean;
+  solicitarRecuperacao: (email: string) => Promise<void>;
+  definirNovaSenha: (senha: string) => Promise<void>;
+  cancelarRecuperacao: () => Promise<void>;
   recarregarUsuario: () => Promise<void>;
   atualizarConta: (input: {
     nome: string;
     telefone: string;
     senha?: string;
+    senhaAtual?: string;
   }) => Promise<void>;
 };
 
@@ -47,6 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recuperacaoPendente, setRecuperacaoPendente] = useState(false);
+  const codigosUsados = useRef(new Set<string>());
 
   const carregarPerfil = useCallback(async (user: User | null) => {
     if (!user) {
@@ -78,8 +93,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, nextSession) => {
+      (event, nextSession) => {
         setSession(nextSession);
+        if (event === "PASSWORD_RECOVERY") {
+          setRecuperacaoPendente(true);
+        }
         setTimeout(() => {
           void carregarPerfil(nextSession?.user ?? null);
         }, 0);
@@ -91,6 +109,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       listener.subscription.unsubscribe();
     };
   }, [carregarPerfil]);
+
+  const aplicarLinkRecuperacao = useCallback(async (url: string | null) => {
+    const codigo = extrairCodigoRecuperacao(url);
+    if (!codigo || codigosUsados.current.has(codigo)) {
+      return;
+    }
+
+    codigosUsados.current.add(codigo);
+    const recuperacao = linkEhRecuperacaoSenha(url ?? "");
+    if (recuperacao) {
+      setRecuperacaoPendente(true);
+    }
+    const { error } = await supabase.auth.exchangeCodeForSession(codigo);
+    if (error) {
+      codigosUsados.current.delete(codigo);
+      if (recuperacao) {
+        setRecuperacaoPendente(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let ativo = true;
+
+    const tratar = (url: string | null) => {
+      if (!ativo) {
+        return;
+      }
+      void aplicarLinkRecuperacao(url);
+    };
+
+    Linking.getInitialURL()
+      .then(tratar)
+      .catch(() => undefined);
+
+    const assinatura = Linking.addEventListener("url", ({ url }) => tratar(url));
+
+    return () => {
+      ativo = false;
+      assinatura.remove();
+    };
+  }, [aplicarLinkRecuperacao]);
 
   const signIn = useCallback(async (email: string, senha: string) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -110,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password: input.senha,
         options: {
+          emailRedirectTo: urlRedirecionamentoConfirmacao(),
           data: {
             nome: input.nome.trim(),
             cpf: input.cpf,
@@ -155,6 +216,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) {
       throw error;
     }
+    setRecuperacaoPendente(false);
+    setUsuario(null);
+  }, []);
+
+  const solicitarRecuperacao = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email.trim().toLowerCase(),
+      { redirectTo: urlRedirecionamentoSenha() }
+    );
+
+    if (error) {
+      throw error;
+    }
+  }, []);
+
+  const definirNovaSenha = useCallback(async (senha: string) => {
+    const { error } = await supabase.auth.updateUser({ password: senha });
+    if (error) {
+      throw error;
+    }
+    setRecuperacaoPendente(false);
+  }, []);
+
+  const cancelarRecuperacao = useCallback(async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      throw error;
+    }
+    setRecuperacaoPendente(false);
     setUsuario(null);
   }, []);
 
@@ -163,10 +253,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [carregarPerfil, session?.user]);
 
   const atualizarConta = useCallback(
-    async (input: { nome: string; telefone: string; senha?: string }) => {
+    async (input: {
+      nome: string;
+      telefone: string;
+      senha?: string;
+      senhaAtual?: string;
+    }) => {
       const userId = session?.user?.id;
-      if (!userId) {
+      const email = session?.user?.email;
+      if (!userId || !email) {
         throw new Error("Não autenticado.");
+      }
+
+      const senha = input.senha?.trim();
+      if (senha) {
+        const senhaAtual = input.senhaAtual?.trim();
+        if (!senhaAtual) {
+          throw new Error("Informe a senha atual.");
+        }
+
+        const { error: erroAtual } = await supabase.auth.signInWithPassword({
+          email,
+          password: senhaAtual,
+        });
+        if (erroAtual) {
+          throw new Error("Senha atual incorreta.");
+        }
       }
 
       const perfil = await atualizarPerfil(userId, {
@@ -175,15 +287,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       setUsuario(perfil);
 
-      const senha = input.senha?.trim();
-      if (senha) {
-        const { error } = await supabase.auth.updateUser({ password: senha });
-        if (error) {
-          throw error;
-        }
+      if (!senha) {
+        return;
+      }
+
+      const { error } = await supabase.auth.updateUser({ password: senha });
+      if (error) {
+        throw error;
       }
     },
-    [session?.user?.id]
+    [session?.user?.email, session?.user?.id]
   );
 
   const value = useMemo<AuthContextValue>(
@@ -195,6 +308,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      recuperacaoPendente,
+      solicitarRecuperacao,
+      definirNovaSenha,
+      cancelarRecuperacao,
       recarregarUsuario,
       atualizarConta,
     }),
@@ -205,6 +322,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      recuperacaoPendente,
+      solicitarRecuperacao,
+      definirNovaSenha,
+      cancelarRecuperacao,
       recarregarUsuario,
       atualizarConta,
     ]

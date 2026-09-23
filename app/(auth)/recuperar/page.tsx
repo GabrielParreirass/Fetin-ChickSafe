@@ -1,7 +1,8 @@
 import { cores } from "@/constants/tema";
 import { useAuth } from "@/contexts/auth";
 import { mensagemDeErro } from "@/lib/erros";
-import { router } from "expo-router";
+import { emailRecuperacaoValido } from "@/lib/recuperar-senha";
+import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -13,25 +14,28 @@ import {
   View,
 } from "react-native";
 
-export default function LoginScreen() {
-  const { signIn } = useAuth();
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
+export default function RecuperarSenhaScreen() {
+  const { solicitarRecuperacao } = useAuth();
+  const params = useLocalSearchParams<{ email?: string }>();
+  const emailInicial = typeof params.email === "string" ? params.email : "";
+  const [email, setEmail] = useState(emailInicial);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
+  const [enviado, setEnviado] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email.trim() || !senha) {
-      setErro("Preencha e-mail e senha.");
+  const handleEnviar = async () => {
+    if (!emailRecuperacaoValido(email)) {
+      setErro("Informe um e-mail válido.");
       return;
     }
 
     try {
       setErro("");
       setEnviando(true);
-      await signIn(email, senha);
+      await solicitarRecuperacao(email);
+      setEnviado(true);
     } catch (error) {
-      setErro(mensagemDeErro(error, "Não foi possível entrar."));
+      setErro(mensagemDeErro(error, "Não foi possível enviar o e-mail."));
     } finally {
       setEnviando(false);
     }
@@ -41,7 +45,11 @@ export default function LoginScreen() {
     <View style={styles.container}>
       <StatusBar backgroundColor={cores.fundo} barStyle="dark-content" />
 
-      <Text style={styles.title}>Login</Text>
+      <Text style={styles.title}>Recuperar senha</Text>
+      <Text style={styles.texto}>
+        Enviaremos um link para este e-mail. Abra o link neste aparelho para
+        criar uma senha nova.
+      </Text>
 
       <TextInput
         style={styles.input}
@@ -54,48 +62,34 @@ export default function LoginScreen() {
         onChangeText={(valor) => {
           setEmail(valor);
           setErro("");
-        }}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Senha"
-        placeholderTextColor={cores.tintaSuave}
-        secureTextEntry
-        value={senha}
-        onChangeText={(valor) => {
-          setSenha(valor);
-          setErro("");
+          setEnviado(false);
         }}
       />
 
       {erro ? <Text style={styles.erro}>{erro}</Text> : null}
+      {enviado ? (
+        <Text style={styles.aviso}>
+          Se esse e-mail estiver cadastrado, o link já foi enviado. Confira
+          também a caixa de spam.
+        </Text>
+      ) : null}
 
       <TouchableOpacity
         style={[styles.button, enviando && styles.buttonDisabled]}
-        onPress={handleLogin}
+        onPress={handleEnviar}
         disabled={enviando}
       >
         {enviando ? (
           <ActivityIndicator color={cores.fundo} />
         ) : (
-          <Text style={styles.buttonText}>Entrar</Text>
+          <Text style={styles.buttonText}>
+            {enviado ? "Enviar de novo" : "Enviar link"}
+          </Text>
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity
-        onPress={() =>
-          router.navigate({
-            pathname: "/(auth)/recuperar/page",
-            params: email.trim() ? { email: email.trim() } : {},
-          })
-        }
-      >
-        <Text style={styles.linkText}>Esqueci minha senha</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => router.navigate("/(auth)/cadastro/page")}>
-        <Text style={styles.createAccountText}>Criar uma conta</Text>
+      <TouchableOpacity onPress={() => router.navigate("/(auth)/login/page")}>
+        <Text style={styles.linkText}>Voltar ao login</Text>
       </TouchableOpacity>
     </View>
   );
@@ -113,7 +107,15 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "bold",
     color: cores.tinta,
-    marginBottom: 40,
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  texto: {
+    width: "100%",
+    color: cores.tinta,
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 28,
   },
   input: {
     width: "100%",
@@ -128,6 +130,14 @@ const styles = StyleSheet.create({
   erro: {
     width: "100%",
     color: cores.erro,
+    fontSize: 15,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  aviso: {
+    width: "100%",
+    color: cores.tinta,
     fontSize: 15,
     fontWeight: "600",
     textAlign: "center",
@@ -155,11 +165,5 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     textDecorationLine: "underline",
-  },
-  createAccountText: {
-    color: cores.tinta,
-    marginTop: 25,
-    fontSize: 16,
-    fontWeight: "600",
   },
 });

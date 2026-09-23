@@ -1,3 +1,4 @@
+import { cores } from "@/constants/tema";
 import type { Leitura } from "@/lib/types";
 import {
   correnteOk,
@@ -124,12 +125,12 @@ export function fatiasEnergia(resumo: ResumoDashboard): Array<{
     {
       value: resumo.leiturasFonte,
       text: "Fonte",
-      color: "#4CAF50",
+      color: cores.normal,
     },
     {
       value: resumo.leiturasBateria,
       text: "Bateria",
-      color: "#F44336",
+      color: cores.alerta,
     },
   ].filter((fatia) => fatia.value > 0);
 }

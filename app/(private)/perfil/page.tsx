@@ -1,3 +1,4 @@
+import { cores } from "@/constants/tema";
 import { useAuth } from "@/contexts/auth";
 import { usePush } from "@/contexts/push";
 import { formatarCpf } from "@/lib/database";
@@ -21,6 +22,7 @@ export default function PerfilScreen() {
   const { token: tokenPush, erro: erroPush } = usePush();
   const [nome, setNome] = useState(usuario?.nome ?? "");
   const [telefone, setTelefone] = useState(usuario?.telefone ?? "");
+  const [senhaAtual, setSenhaAtual] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -45,7 +47,11 @@ export default function PerfilScreen() {
       return;
     }
 
-    if (senha || confirmarSenha) {
+    if (senha || confirmarSenha || senhaAtual) {
+      if (!senhaAtual) {
+        setErro("Informe a senha atual.");
+        return;
+      }
       if (senha.length < 6) {
         setErro("A senha deve ter pelo menos 6 caracteres.");
         return;
@@ -64,7 +70,9 @@ export default function PerfilScreen() {
         nome,
         telefone,
         senha: senha || undefined,
+        senhaAtual: senhaAtual || undefined,
       });
+      setSenhaAtual("");
       setSenha("");
       setConfirmarSenha("");
       setAviso("Dados atualizados.");
@@ -77,7 +85,7 @@ export default function PerfilScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#f9ca0a" barStyle="dark-content" />
+      <StatusBar backgroundColor={cores.fundo} barStyle="dark-content" />
 
       <View style={styles.header}>
         <TouchableOpacity
@@ -85,7 +93,7 @@ export default function PerfilScreen() {
           style={styles.backButton}
           accessibilityLabel="Voltar"
         >
-          <MaterialIcons name="arrow-back" size={26} color="#333" />
+          <MaterialIcons name="arrow-back" size={26} color={cores.tinta} />
         </TouchableOpacity>
         <Text style={styles.title}>Perfil</Text>
       </View>
@@ -95,7 +103,7 @@ export default function PerfilScreen() {
         <TextInput
           style={styles.input}
           placeholder="Nome completo"
-          placeholderTextColor="#555"
+          placeholderTextColor={cores.tintaSuave}
           value={nome}
           onChangeText={atualizarCampo(setNome)}
         />
@@ -104,7 +112,7 @@ export default function PerfilScreen() {
         <TextInput
           style={styles.input}
           placeholder="Telefone"
-          placeholderTextColor="#555"
+          placeholderTextColor={cores.tintaSuave}
           keyboardType="phone-pad"
           value={telefone}
           onChangeText={atualizarCampo(setTelefone)}
@@ -126,11 +134,21 @@ export default function PerfilScreen() {
         />
         <Text style={styles.ajuda}>O CPF não pode ser alterado.</Text>
 
+        <Text style={styles.label}>Senha atual</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Senha atual"
+          placeholderTextColor={cores.tintaSuave}
+          secureTextEntry
+          value={senhaAtual}
+          onChangeText={atualizarCampo(setSenhaAtual)}
+        />
+
         <Text style={styles.label}>Nova senha (opcional)</Text>
         <TextInput
           style={styles.input}
           placeholder="Nova senha"
-          placeholderTextColor="#555"
+          placeholderTextColor={cores.tintaSuave}
           secureTextEntry
           value={senha}
           onChangeText={atualizarCampo(setSenha)}
@@ -139,7 +157,7 @@ export default function PerfilScreen() {
         <TextInput
           style={styles.input}
           placeholder="Confirmar nova senha"
-          placeholderTextColor="#555"
+          placeholderTextColor={cores.tintaSuave}
           secureTextEntry
           value={confirmarSenha}
           onChangeText={atualizarCampo(setConfirmarSenha)}
@@ -165,7 +183,7 @@ export default function PerfilScreen() {
           disabled={enviando}
         >
           {enviando ? (
-            <ActivityIndicator color="#f9ca0a" />
+            <ActivityIndicator color={cores.fundo} />
           ) : (
             <Text style={styles.buttonText}>Salvar</Text>
           )}
@@ -178,10 +196,10 @@ export default function PerfilScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9ca0a",
+    backgroundColor: cores.fundo,
   },
   header: {
-    backgroundColor: "#f9ca0a",
+    backgroundColor: cores.fundo,
     flexDirection: "row",
     alignItems: "center",
     paddingTop: 50,
@@ -195,10 +213,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
+    color: cores.tinta,
   },
   body: {
-    backgroundColor: "#fff",
+    backgroundColor: cores.branco,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     padding: 20,
@@ -207,40 +225,40 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 6,
   },
   input: {
     width: "100%",
     height: 55,
-    backgroundColor: "#f1f1f1",
+    backgroundColor: cores.superficieSuave,
     borderRadius: 10,
     paddingHorizontal: 15,
     fontSize: 16,
     marginBottom: 12,
-    color: "#333",
+    color: cores.tinta,
   },
   inputBloqueado: {
-    color: "#777",
+    color: cores.tintaFraca,
   },
   ajuda: {
     fontSize: 13,
-    color: "#777",
+    color: cores.tintaFraca,
     marginTop: -6,
     marginBottom: 16,
   },
   tokenPush: {
     width: "100%",
-    backgroundColor: "#f1f1f1",
+    backgroundColor: cores.superficieSuave,
     borderRadius: 10,
     padding: 12,
     fontSize: 13,
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 6,
   },
   erro: {
     width: "100%",
-    color: "#8B0000",
+    color: cores.erro,
     fontSize: 15,
     fontWeight: "600",
     textAlign: "center",
@@ -248,14 +266,14 @@ const styles = StyleSheet.create({
   },
   aviso: {
     width: "100%",
-    color: "#333",
+    color: cores.tinta,
     fontSize: 15,
     fontWeight: "600",
     textAlign: "center",
     marginBottom: 16,
   },
   button: {
-    backgroundColor: "#333",
+    backgroundColor: cores.tinta,
     paddingVertical: 15,
     borderRadius: 10,
     marginBottom: 20,
@@ -266,7 +284,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: "#f9ca0a",
+    color: cores.fundo,
     fontSize: 18,
     fontWeight: "600",
   },

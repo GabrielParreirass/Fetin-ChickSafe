@@ -1,3 +1,4 @@
+import { cores } from "@/constants/tema";
 import {
   listarNotificacoes,
   marcarNotificacaoLida,
@@ -124,7 +125,7 @@ export function SinoNotificacoes({ usuarioId }: { usuarioId?: string }) {
             : "Abrir notificações"
         }
       >
-        <MaterialIcons name="notifications" size={26} color="#333" />
+        <MaterialIcons name="notifications" size={26} color={cores.tinta} />
         {badge ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{badge}</Text>
@@ -145,7 +146,7 @@ export function SinoNotificacoes({ usuarioId }: { usuarioId?: string }) {
           <Pressable style={styles.modalContent} onPress={() => {}}>
             <Text style={styles.modalTitle}>Notificações</Text>
             {carregando && itens.length === 0 ? (
-              <ActivityIndicator color="#333" />
+              <ActivityIndicator color={cores.tinta} />
             ) : itens.length === 0 ? (
               <Text style={styles.vazia}>Nenhuma notificação ainda.</Text>
             ) : (
@@ -191,13 +192,13 @@ const styles = StyleSheet.create({
     minWidth: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: "#F44336",
+    backgroundColor: cores.alerta,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 3,
   },
   badgeText: {
-    color: "#fff",
+    color: cores.branco,
     fontSize: 10,
     fontWeight: "700",
   },
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
     padding: 48,
   },
   modalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: cores.branco,
     borderRadius: 16,
     padding: 14,
     width: 280,
@@ -219,7 +220,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 17,
     fontWeight: "bold",
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 10,
     paddingHorizontal: 4,
   },
@@ -228,7 +229,7 @@ const styles = StyleSheet.create({
   },
   vazia: {
     fontSize: 14,
-    color: "#555",
+    color: cores.tintaSuave,
     textAlign: "center",
     lineHeight: 20,
     marginVertical: 10,
@@ -240,31 +241,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#eee",
-    backgroundColor: "#fff",
+    borderColor: cores.divisor,
+    backgroundColor: cores.branco,
   },
   itemNaoLida: {
-    backgroundColor: "#fff8e1",
-    borderColor: "#f0e0a8",
+    backgroundColor: cores.naoLida,
+    borderColor: cores.bordaSuave,
   },
   itemTitulo: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#333",
+    color: cores.tinta,
   },
   itemMensagem: {
     fontSize: 13,
-    color: "#555",
+    color: cores.tintaSuave,
     marginTop: 4,
     lineHeight: 18,
   },
   itemQuando: {
     fontSize: 12,
-    color: "#777",
+    color: cores.tintaFraca,
     marginTop: 6,
   },
   fechar: {
-    color: "#333",
+    color: cores.tinta,
     textAlign: "center",
     fontSize: 15,
     textDecorationLine: "underline",

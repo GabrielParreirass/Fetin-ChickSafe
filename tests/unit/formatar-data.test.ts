@@ -1,4 +1,4 @@
-import { formatarDataHora } from "@/app/utils/historico";
+import { formatarDataHora } from "@/lib/calendario";
 
 describe("formatarDataHora", () => {
   it("formata data e hora no padrão brasileiro", () => {

@@ -1,3 +1,12 @@
+jest.mock("expo-linking", () => ({
+  createURL: jest.fn((path: string) => {
+    const limpo = String(path).replace(/^\//, "");
+    return limpo ? `appchicksafe://${limpo}` : "appchicksafe://";
+  }),
+  getInitialURL: jest.fn(() => Promise.resolve(null)),
+  addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+}));
+
 jest.mock("@/lib/supabase", () => ({
   supabase: {
     auth: {
@@ -9,6 +18,8 @@ jest.mock("@/lib/supabase", () => ({
       signUp: jest.fn(),
       signOut: jest.fn(),
       updateUser: jest.fn(),
+      resetPasswordForEmail: jest.fn(),
+      exchangeCodeForSession: jest.fn(),
     },
   },
 }));
@@ -21,12 +32,13 @@ jest.mock("@/lib/database", () => ({
 
 import { useState } from "react";
 import { Text, Pressable } from "react-native";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react-native";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react-native";
 import type { Session, User } from "@supabase/supabase-js";
 import { AuthProvider, useAuth } from "@/contexts/auth";
 import { atualizarPerfil, entrarGalpaoPorCodigo, garantirPerfil } from "@/lib/database";
 import { supabase } from "@/lib/supabase";
 import type { Usuario } from "@/lib/types";
+import * as Linking from "expo-linking";
 
 const PERFIL: Usuario = {
   id: "user-1",
@@ -44,8 +56,20 @@ const USER = {
 const SESSION = { user: USER } as Session;
 
 function AuthStatus() {
-  const { loading, usuario, user, signIn, signUp, signOut, recarregarUsuario, atualizarConta } =
-    useAuth();
+  const {
+    loading,
+    usuario,
+    user,
+    signIn,
+    signUp,
+    signOut,
+    recarregarUsuario,
+    atualizarConta,
+    recuperacaoPendente,
+    solicitarRecuperacao,
+    definirNovaSenha,
+    cancelarRecuperacao,
+  } = useAuth();
   const [erro, setErro] = useState("nenhum");
   const [cadastro, setCadastro] = useState("nenhum");
 
@@ -56,6 +80,7 @@ function AuthStatus() {
       <Text>{`email:${user?.email ?? "nenhum"}`}</Text>
       <Text>{`erro:${erro}`}</Text>
       <Text>{`cadastro:${cadastro}`}</Text>
+      <Text>{`recuperacao:${recuperacaoPendente ? "sim" : "nao"}`}</Text>
       <Pressable
         onPress={() => {
           void signIn("  MARIA@ChickSafe.APP ", "senha123").catch((error) => {
@@ -122,6 +147,7 @@ function AuthStatus() {
             nome: " Maria Souza ",
             telefone: " 31888887777 ",
             senha: "nova123",
+            senhaAtual: "atual123",
           }).catch((error) => {
             setErro(error instanceof Error ? error.message : "falha");
           });
@@ -140,6 +166,33 @@ function AuthStatus() {
         }}
       >
         <Text>atualizar-sem-senha</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => {
+          void solicitarRecuperacao("  MARIA@ChickSafe.APP ").catch((error) => {
+            setErro(error instanceof Error ? error.message : "falha");
+          });
+        }}
+      >
+        <Text>recuperar</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => {
+          void definirNovaSenha("nova123").catch((error) => {
+            setErro(error instanceof Error ? error.message : "falha");
+          });
+        }}
+      >
+        <Text>definir-senha</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => {
+          void cancelarRecuperacao().catch((error) => {
+            setErro(error instanceof Error ? error.message : "falha");
+          });
+        }}
+      >
+        <Text>cancelar-recuperacao</Text>
       </Pressable>
     </>
   );
@@ -170,6 +223,16 @@ describe("AuthProvider", () => {
       telefone: "31888887777",
     });
     (supabase.auth.updateUser as jest.Mock).mockResolvedValue({ error: null });
+    (supabase.auth.resetPasswordForEmail as jest.Mock).mockResolvedValue({
+      error: null,
+    });
+    (supabase.auth.exchangeCodeForSession as jest.Mock).mockResolvedValue({
+      error: null,
+    });
+    (Linking.getInitialURL as jest.Mock).mockResolvedValue(null);
+    (Linking.addEventListener as jest.Mock).mockReturnValue({
+      remove: jest.fn(),
+    });
   });
 
   it("inicia sem sessão e encerra o loading", async () => {
@@ -244,13 +307,14 @@ describe("AuthProvider", () => {
     expect(supabase.auth.signUp).toHaveBeenCalledWith({
       email: "joao@chicksafe.app",
       password: "senha123",
-      options: {
-        data: {
-          nome: "Maria",
-          cpf: "12345678900",
-          telefone: "31999990000",
+        options: {
+          emailRedirectTo: "appchicksafe://",
+          data: {
+            nome: "Maria",
+            cpf: "12345678900",
+            telefone: "31999990000",
+          },
         },
-      },
     });
     expect(garantirPerfil).not.toHaveBeenCalled();
   });
@@ -361,9 +425,12 @@ describe("AuthProvider", () => {
     expect(await screen.findByText("usuario:Maria Atualizada")).toBeOnTheScreen();
   });
 
-  it("atualiza perfil e senha", async () => {
+  it("atualiza perfil e senha depois de conferir a senha atual", async () => {
     (supabase.auth.getSession as jest.Mock).mockResolvedValue({
       data: { session: SESSION },
+    });
+    (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
+      error: null,
     });
     renderAuth();
     await screen.findByText("usuario:Maria Silva");
@@ -375,11 +442,31 @@ describe("AuthProvider", () => {
         nome: " Maria Souza ",
         telefone: " 31888887777 ",
       });
+      expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
+        email: "maria@chicksafe.app",
+        password: "atual123",
+      });
       expect(supabase.auth.updateUser).toHaveBeenCalledWith({
         password: "nova123",
       });
     });
     expect(await screen.findByText("usuario:Maria Souza")).toBeOnTheScreen();
+  });
+
+  it("não troca a senha quando a senha atual está errada", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+      data: { session: SESSION },
+    });
+    (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
+      error: new Error("Invalid login credentials"),
+    });
+    renderAuth();
+    await screen.findByText("usuario:Maria Silva");
+
+    fireEvent.press(screen.getByText("atualizar-conta"));
+
+    expect(await screen.findByText("erro:Senha atual incorreta.")).toBeOnTheScreen();
+    expect(supabase.auth.updateUser).not.toHaveBeenCalled();
   });
 
   it("não troca senha quando ela não vem", async () => {
@@ -395,6 +482,100 @@ describe("AuthProvider", () => {
       expect(atualizarPerfil).toHaveBeenCalled();
     });
     expect(supabase.auth.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("envia o e-mail de recuperação para o endereço normalizado", async () => {
+    renderAuth();
+    await screen.findByText("loading:nao");
+
+    fireEvent.press(screen.getByText("recuperar"));
+
+    await waitFor(() => {
+      expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith(
+        "maria@chicksafe.app",
+        { redirectTo: "appchicksafe://redefinir/page" }
+      );
+    });
+  });
+
+  it("confirma o e-mail sem abrir a tela de senha nova", async () => {
+    (Linking.getInitialURL as jest.Mock).mockResolvedValue(
+      "appchicksafe://?code=confirm"
+    );
+    (supabase.auth.exchangeCodeForSession as jest.Mock).mockResolvedValue({
+      error: null,
+    });
+    renderAuth();
+
+    await waitFor(() => {
+      expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledWith(
+        "confirm"
+      );
+    });
+    expect(screen.getByText("recuperacao:nao")).toBeOnTheScreen();
+  });
+
+  it("troca o código do link por uma sessão de recuperação", async () => {
+    (Linking.getInitialURL as jest.Mock).mockResolvedValue(
+      "appchicksafe://redefinir/page?code=abc%201"
+    );
+    renderAuth();
+
+    expect(await screen.findByText("recuperacao:sim")).toBeOnTheScreen();
+    expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledWith("abc 1");
+  });
+
+  it("marca recuperação quando o Supabase emite PASSWORD_RECOVERY", async () => {
+    let callback: (event: string, nextSession: Session | null) => void = () => {};
+    (supabase.auth.onAuthStateChange as jest.Mock).mockImplementation((fn) => {
+      callback = fn;
+      return { data: { subscription: { unsubscribe: jest.fn() } } };
+    });
+    renderAuth();
+    await screen.findByText("loading:nao");
+
+    await act(async () => {
+      callback("PASSWORD_RECOVERY", SESSION);
+    });
+
+    expect(await screen.findByText("recuperacao:sim")).toBeOnTheScreen();
+  });
+
+  it("salva a senha nova e encerra a recuperação", async () => {
+    let callback: (event: string, nextSession: Session | null) => void = () => {};
+    (supabase.auth.onAuthStateChange as jest.Mock).mockImplementation((fn) => {
+      callback = fn;
+      return { data: { subscription: { unsubscribe: jest.fn() } } };
+    });
+    renderAuth();
+    await screen.findByText("loading:nao");
+    await act(async () => {
+      callback("PASSWORD_RECOVERY", SESSION);
+    });
+    await screen.findByText("recuperacao:sim");
+
+    fireEvent.press(screen.getByText("definir-senha"));
+
+    await waitFor(() => {
+      expect(supabase.auth.updateUser).toHaveBeenCalledWith({
+        password: "nova123",
+      });
+    });
+    expect(await screen.findByText("recuperacao:nao")).toBeOnTheScreen();
+  });
+
+  it("cancela a recuperação saindo da sessão", async () => {
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+      data: { session: SESSION },
+    });
+    (supabase.auth.signOut as jest.Mock).mockResolvedValue({ error: null });
+    renderAuth();
+    await screen.findByText("usuario:Maria Silva");
+
+    fireEvent.press(screen.getByText("cancelar-recuperacao"));
+
+    expect(await screen.findByText("usuario:nenhum")).toBeOnTheScreen();
+    expect(screen.getByText("recuperacao:nao")).toBeOnTheScreen();
   });
 });
 

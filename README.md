@@ -76,7 +76,7 @@ Se o projeto Supabase estiver **Paused**, login e push de alerta falham. Restaur
 
 ## O que o app faz
 
-- Cadastro e login com e-mail/senha (Supabase Auth)
+- Cadastro, login e recuperação de senha por e-mail (Supabase Auth)
 - Perfil do produtor (nome e telefone editáveis; e-mail e CPF fixos)
 - Token push de teste no Perfil (development build)
 - Criar galpão (gera código de convite) ou entrar com código
@@ -147,20 +147,13 @@ Telas (app/)
 - `lib/galpao.ts` — mapeia galpão e valida limiares
 - `contexts/auth.tsx` — sessão, login, cadastro, logout e edição de conta
 - `contexts/auth-gate.tsx` — redireciona público ↔ privado
-- `supabase/extras.sql` — grants e RPCs `entrar_galpao` / `criar_galpao` / `listar_acessos_galpao` / gestão do dono
-- `supabase/alter-leituras.sql` — energia Fonte/Bateria/USB e policy de insert
-- `supabase/listar-acessos.sql` — RPC para listar dono e funcionários de um galpão
-- `supabase/gestao.sql` — perfil, limiares, remover acesso e apagar galpão
-- `supabase/aprovacao.sql` — dono aprova acesso, funcionário sai, RLS de leituras
-- `supabase/notificacoes.sql` — tabela de avisos e notificação ao dono no pedido de acesso
-- `supabase/notificacoes-alerta.sql` — trigger `trg_notificar_alerta_galpao` em `leituras`
-- `supabase/push-token.sql` — coluna `usuarios.push_token` e trigger que chama `enviar-push`
+- `constants/tema.ts` — cores do app
+- `hooks/use-home-galpoes.ts`, `hooks/use-galpao.ts`, `hooks/use-historico.ts` — carga e tempo real, fora do layout
+- `supabase/migrations/` — schema na ordem em que deve ser aplicado
 - `supabase/functions/ingest-leitura` — ESP32 autentica com `X-Device-Key` e grava `leituras`
 - `supabase/functions/enviar-push` — lê o token do usuário e POST em `https://exp.host/--/api/v2/push/send`
 
 Leituras reais devem vir de um ESP32 (`ingest-leitura`). Nesta branch há um **simulador no app** (`lib/simulador.ts` + `contexts/simulador.tsx`): o botão **Simular ESP32 (1 min)** publica nos galpões nomeados `Teste1` e `Teste2`; **Testar alerta no galpão** usa o primeiro galpão com acesso aprovado. O simulador é temporário.
-
-Arquivos MQTT em `app/utils/` (`MqttOptions.ts`, `Api_url.json`) e mocks antigos **não fazem parte do fluxo atual**. O Expo Router avisa `missing the required default export` nesses arquivos — pode ignorar.
 
 ## Push: alerta com o app fechado
 
@@ -191,7 +184,7 @@ Arquivos envolvidos:
 |---|---|
 | Canal + token Expo | `lib/push.ts` |
 | Grava token após login | `contexts/push.tsx` |
-| Coluna + HTTP para a function | `supabase/push-token.sql` |
+| Coluna + HTTP para a function | `supabase/migrations/20260301000800_push_token.sql` |
 | Envio Expo | `supabase/functions/enviar-push/index.ts` |
 | `verify_jwt = false` | `supabase/config.toml` (`[functions.enviar-push]`) |
 | Plugin nativo | `app.json` → `expo-notifications` + `android.googleServicesFile` |
@@ -211,7 +204,7 @@ app/
 contexts/                   # AuthProvider, AuthGate, PushProvider, simulador
 lib/                        # dados, status, histórico, push
 supabase/
-  *.sql                     # rode no SQL Editor
+  migrations/               # schema versionado
   functions/ingest-leitura  # ESP32
   functions/enviar-push     # Expo Push
 google-services.json        # cliente Firebase Android (necessário no build)
@@ -249,20 +242,22 @@ Já feito no projeto ChickSafe atual. Só repita se for um **projeto Supabase/Fi
 
    Use só a chave **publishable** (anon). Não commite `.env.local`. Essas variáveis são embutidas no bundle do Metro; o tablet **não** precisa do arquivo.
 
-3. No SQL Editor, rode nesta ordem:
+3. Banco: os scripts estão em `supabase/migrations/`, nesta ordem:
 
-   - `supabase/extras.sql`
-   - `supabase/alter-leituras.sql`
-   - `supabase/listar-acessos.sql`
-   - `supabase/gestao.sql`
-   - `supabase/aprovacao.sql`
-   - `supabase/notificacoes.sql`
-   - `supabase/notificacoes-alerta.sql`
-   - `supabase/sensor-offline.sql`
-   - `supabase/dispositivos.sql` (se for usar ESP32)
-   - `supabase/push-token.sql`
+   - `20260301000100_extras.sql`
+   - `20260301000200_alter_leituras.sql`
+   - `20260301000300_listar_acessos.sql`
+   - `20260301000400_gestao.sql`
+   - `20260301000500_aprovacao.sql`
+   - `20260301000600_notificacoes.sql`
+   - `20260301000700_notificacoes_alerta.sql`
+   - `20260301000800_push_token.sql`
+   - `20260301000900_dispositivos.sql`
+   - `20260301001000_sensor_offline.sql`
 
-   Se a lista de acessos do galpão mostrar só quem está logado, rode de novo `supabase/listar-acessos.sql`.
+   Projeto **novo**: `npx supabase db push`.
+
+   Projeto **que já rodou esses SQLs**: não execute de novo. Marque cada versão como aplicada (passo a passo na seção abaixo).
 
 4. Edge Functions (na pasta do repo, logado no CLI):
 
@@ -272,9 +267,36 @@ Já feito no projeto ChickSafe atual. Só repita se for um **projeto Supabase/Fi
    npx supabase functions deploy enviar-push --project-ref SEU_REF
    ```
 
-   `push-token.sql` chama `https://SEU_REF.supabase.co/functions/v1/enviar-push`. Se o ref mudar, edite a URL nesse SQL e rode de novo.
+   `20260301000800_push_token.sql` chama `https://SEU_REF.supabase.co/functions/v1/enviar-push`. Se o ref mudar, edite a URL nesse arquivo e aplique só essa migration nova.
 
 5. Mantenha o projeto **Active**. Projeto *Paused* quebra login (`Network request failed`) e o Chrome do aparelho não abre `https://SEU_REF.supabase.co`.
+
+### Banco que já tem o schema
+
+Não rode `db push` nem cole os SQLs de novo. No PowerShell, na pasta do repo, com o CLI logado e o projeto linkado:
+
+```powershell
+npx supabase login
+npx supabase link --project-ref SEU_REF
+npx supabase migration repair --status applied 20260301000100
+npx supabase migration repair --status applied 20260301000200
+npx supabase migration repair --status applied 20260301000300
+npx supabase migration repair --status applied 20260301000400
+npx supabase migration repair --status applied 20260301000500
+npx supabase migration repair --status applied 20260301000600
+npx supabase migration repair --status applied 20260301000700
+npx supabase migration repair --status applied 20260301000800
+npx supabase migration repair --status applied 20260301000900
+npx supabase migration repair --status applied 20260301001000
+npx supabase migration list
+```
+
+`migration list` deve mostrar Local e Remote iguais. Daqui pra frente, mudança de banco entra só como arquivo novo em `supabase/migrations/`.
+
+No painel, em Authentication → URL Configuration → Redirect URLs, inclua:
+
+- `appchicksafe://redefinir/page` (recuperar senha)
+- `appchicksafe://` (confirmar e-mail)
 
 ### Firebase + EAS (push Android)
 
@@ -363,7 +385,7 @@ Em um PC de casa, na mesma Wi‑Fi do celular, muitas vezes basta `npx expo star
 
 ## Como testar o push de alerta
 
-Pré-requisitos: SQL `push-token.sql` rodado, function `enviar-push` publicada, APK de development, usuário logado, permissão de notificação, token visível no Perfil, galpão com acesso **aprovado**, projeto Supabase não pausado.
+Pré-requisitos: migration de push aplicada, function `enviar-push` publicada, APK de development, usuário logado, permissão de notificação, token visível no Perfil, galpão com acesso **aprovado**, projeto Supabase não pausado.
 
 1. USB + Metro ok (se estiver em modo localhost).
 2. Home → **Testar alerta no galpão**.
@@ -382,7 +404,7 @@ Invoke-WebRequest -Method Post -Uri "https://exp.host/--/api/v2/push/send" -Cont
 
 Ou [https://expo.dev/notifications](https://expo.dev/notifications).
 
-Se o botão de alerta atualiza a home mas **não** chega push: a function `enviar-push` não está no ar, `push-token.sql` não rodou, `usuarios.push_token` está vazio, ou o aparelho está sem Play Services / sem internet para o FCM.
+Se o botão de alerta atualiza a home mas **não** chega push: a function `enviar-push` não está no ar, a migration de push não foi aplicada, `usuarios.push_token` está vazio, ou o aparelho está sem Play Services / sem internet para o FCM.
 
 ## Como rodar
 
@@ -463,7 +485,7 @@ O arquivo `reports/relatorio-testes.html` na sua máquina só está completo se 
 | `ExponentAsset.downloadAsync` / `MaterialIcons.ttf` | USB/`adb reverse` caiu | Reconectar cabo, `adb reverse tcp:8081 tcp:8081`, reabrir o dev client |
 | `adb devices` vazio ou `device offline` | Cabo, “só carregar”, Auto Blocker, daemon ADB | Dados USB, autorizar depuração, `adb kill-server` |
 | Token no Perfil: “Ainda sem token…” | Expo Go, permissão recusada, ou `projectId` ausente | Development build; aceitar notificação |
-| Alerta na home, sem push | Function/SQL de push ou token não gravado | `push-token.sql`, `deploy enviar-push`, login de novo, coluna `push_token` |
+| Alerta na home, sem push | Function/SQL de push ou token não gravado | migration `20260301000800_push_token.sql`, `deploy enviar-push`, login de novo, coluna `push_token` |
 | Push no aparelho antigo parou | Login no aparelho novo sobrescreveu o token | Esperado; um token por usuário |
 | `.env.local` “falta no tablet” | Confusão | O tablet não usa esse arquivo; o Metro injeta `EXPO_PUBLIC_*` no bundle |
 | Telas vermelhas empilhadas no LogBox | Erros **antigos** (rede, fonte, 5554) | Dismiss; olhe o Metro para o erro **atual** |

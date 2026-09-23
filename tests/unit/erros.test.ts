@@ -13,6 +13,14 @@ describe("traduzirErroAuth", () => {
     );
   });
 
+  it("traduz limite de e-mail de recuperação", () => {
+    expect(
+      traduzirErroAuth(
+        "For security purposes, you can only request this after 60 seconds."
+      )
+    ).toBe("Aguarde um pouco antes de pedir outro e-mail.");
+  });
+
   it("mantém mensagem desconhecida", () => {
     expect(traduzirErroAuth("Falha interna")).toBe("Falha interna");
   });

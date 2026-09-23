@@ -1,3 +1,4 @@
+import { cores } from "@/constants/tema";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
@@ -28,7 +29,7 @@ export async function registrarPush(): Promise<string | null> {
       name: "ChickSafe",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: "#f9ca0a",
+      lightColor: cores.fundo,
     });
   }
 

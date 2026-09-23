@@ -13,53 +13,84 @@ import {
   View,
 } from "react-native";
 
-export default function LoginScreen() {
-  const { signIn } = useAuth();
-  const [email, setEmail] = useState("");
+export default function RedefinirSenhaScreen() {
+  const { session, recuperacaoPendente, definirNovaSenha, cancelarRecuperacao } =
+    useAuth();
   const [senha, setSenha] = useState("");
+  const [confirmar, setConfirmar] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
 
-  const handleLogin = async () => {
-    if (!email.trim() || !senha) {
-      setErro("Preencha e-mail e senha.");
+  const handleSalvar = async () => {
+    if (senha.length < 6) {
+      setErro("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    if (senha !== confirmar) {
+      setErro("As senhas não coincidem.");
       return;
     }
 
     try {
       setErro("");
       setEnviando(true);
-      await signIn(email, senha);
+      await definirNovaSenha(senha);
     } catch (error) {
-      setErro(mensagemDeErro(error, "Não foi possível entrar."));
+      setErro(mensagemDeErro(error, "Não foi possível salvar a senha."));
     } finally {
       setEnviando(false);
     }
   };
 
+  const handleCancelar = async () => {
+    try {
+      setErro("");
+      setEnviando(true);
+      await cancelarRecuperacao();
+      router.replace("/(auth)/login/page");
+    } catch (error) {
+      setErro(mensagemDeErro(error, "Não foi possível cancelar."));
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  if (!session) {
+    return (
+      <View style={styles.container}>
+        <StatusBar backgroundColor={cores.fundo} barStyle="dark-content" />
+        {recuperacaoPendente ? (
+          <ActivityIndicator size="large" color={cores.tinta} />
+        ) : (
+          <>
+            <Text style={styles.title}>Link inválido</Text>
+            <Text style={styles.texto}>
+              Este link expirou ou já foi usado. Peça outro e-mail de
+              recuperação.
+            </Text>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => router.replace("/(auth)/recuperar/page")}
+            >
+              <Text style={styles.buttonText}>Pedir um novo link</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={cores.fundo} barStyle="dark-content" />
 
-      <Text style={styles.title}>Login</Text>
+      <Text style={styles.title}>Nova senha</Text>
+      <Text style={styles.texto}>Escolha uma senha para entrar no ChickSafe.</Text>
 
       <TextInput
         style={styles.input}
-        placeholder="E-mail"
-        placeholderTextColor={cores.tintaSuave}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoComplete="email"
-        value={email}
-        onChangeText={(valor) => {
-          setEmail(valor);
-          setErro("");
-        }}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Senha"
+        placeholder="Nova senha"
         placeholderTextColor={cores.tintaSuave}
         secureTextEntry
         value={senha}
@@ -69,33 +100,34 @@ export default function LoginScreen() {
         }}
       />
 
+      <TextInput
+        style={styles.input}
+        placeholder="Confirmar senha"
+        placeholderTextColor={cores.tintaSuave}
+        secureTextEntry
+        value={confirmar}
+        onChangeText={(valor) => {
+          setConfirmar(valor);
+          setErro("");
+        }}
+      />
+
       {erro ? <Text style={styles.erro}>{erro}</Text> : null}
 
       <TouchableOpacity
         style={[styles.button, enviando && styles.buttonDisabled]}
-        onPress={handleLogin}
+        onPress={handleSalvar}
         disabled={enviando}
       >
         {enviando ? (
           <ActivityIndicator color={cores.fundo} />
         ) : (
-          <Text style={styles.buttonText}>Entrar</Text>
+          <Text style={styles.buttonText}>Salvar senha</Text>
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity
-        onPress={() =>
-          router.navigate({
-            pathname: "/(auth)/recuperar/page",
-            params: email.trim() ? { email: email.trim() } : {},
-          })
-        }
-      >
-        <Text style={styles.linkText}>Esqueci minha senha</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => router.navigate("/(auth)/cadastro/page")}>
-        <Text style={styles.createAccountText}>Criar uma conta</Text>
+      <TouchableOpacity onPress={handleCancelar} disabled={enviando}>
+        <Text style={styles.linkText}>Cancelar</Text>
       </TouchableOpacity>
     </View>
   );
@@ -113,7 +145,15 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "bold",
     color: cores.tinta,
-    marginBottom: 40,
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  texto: {
+    width: "100%",
+    color: cores.tinta,
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 28,
   },
   input: {
     width: "100%",
@@ -155,11 +195,5 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     textDecorationLine: "underline",
-  },
-  createAccountText: {
-    color: cores.tinta,
-    marginTop: 25,
-    fontSize: 16,
-    fontWeight: "600",
   },
 });

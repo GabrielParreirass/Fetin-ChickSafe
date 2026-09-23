@@ -20,6 +20,8 @@ export default function RootLayout() {
               <Stack.Screen name="index" />
               <Stack.Screen name="(auth)/login/page" />
               <Stack.Screen name="(auth)/cadastro/page" />
+              <Stack.Screen name="(auth)/recuperar/page" />
+              <Stack.Screen name="(auth)/redefinir/page" />
               <Stack.Screen name="(private)/home/page" />
               <Stack.Screen name="(private)/perfil/page" />
               <Stack.Screen name="(private)/galpao/[id]/page" />
