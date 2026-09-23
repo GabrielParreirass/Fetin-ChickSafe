@@ -6,10 +6,23 @@ jest.mock("@/lib/supabase", () => ({
 
 import {
   galpaoParaTesteAlerta,
+  galpoesParaTesteAlerta,
   leituraAlertaDeTeste,
   leituraNormalDeTeste,
 } from "@/lib/simulador";
 import { galpaoNorte, galpaoNortePendente, galpaoSul } from "../ui/helpers/fakes";
+
+describe("galpoesParaTesteAlerta", () => {
+  it("inclui todos os galpões com acesso aprovado", () => {
+    expect(
+      galpoesParaTesteAlerta([galpaoNortePendente, galpaoNorte, galpaoSul])
+    ).toEqual([galpaoNorte, galpaoSul]);
+  });
+
+  it("devolve lista vazia quando nenhum está aprovado", () => {
+    expect(galpoesParaTesteAlerta([galpaoNortePendente])).toEqual([]);
+  });
+});
 
 describe("galpaoParaTesteAlerta", () => {
   it("escolhe o primeiro galpão com acesso aprovado", () => {

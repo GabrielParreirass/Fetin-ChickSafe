@@ -1,7 +1,11 @@
 import { useAuth } from "@/contexts/auth";
 import { listarGalpoesDoUsuario } from "@/lib/database";
-import { galpaoParaTesteAlerta, publicarEntradaEmAlerta, simularTickEsp32 } from "@/lib/simulador";
-import type { Leitura } from "@/lib/types";
+import {
+  galpoesParaTesteAlerta,
+  publicarEntradaEmAlertaNosGalpoes,
+  simularTickEsp32,
+} from "@/lib/simulador";
+import type { Galpao, Leitura } from "@/lib/types";
 import {
   createContext,
   useCallback,
@@ -52,6 +56,25 @@ export function SimuladorProvider({ children }: { children: ReactNode }) {
     return leitura;
   }, [user]);
 
+  const dispararAlertaNosGalpoes = useCallback(async (alvos: Galpao[]) => {
+    try {
+      const leitura = await publicarEntradaEmAlertaNosGalpoes(alvos);
+      if (leitura) {
+        setUltima(leitura);
+      }
+      const nomes = alvos.map((galpao) => galpao.nome).join(" e ");
+      const verbo = alvos.length === 1 ? "entrou" : "entraram";
+      Alert.alert(
+        "Alerta enviado",
+        `${nomes} ${verbo} em alerta. Feche o app (não use Forçar parada) e espere o push.`
+      );
+    } catch (error) {
+      const mensagem =
+        error instanceof Error ? error.message : "Não foi possível gerar o alerta.";
+      Alert.alert("Alerta de teste", mensagem);
+    }
+  }, []);
+
   const testarAlerta = useCallback(async () => {
     if (!user) {
       Alert.alert("Alerta de teste", "Faça login para testar o push.");
@@ -59,22 +82,36 @@ export function SimuladorProvider({ children }: { children: ReactNode }) {
     }
     try {
       const galpoes = await listarGalpoesDoUsuario(user.id);
-      const alvo = galpaoParaTesteAlerta(galpoes);
-      if (!alvo) {
+      const alvos = galpoesParaTesteAlerta(galpoes);
+      if (alvos.length === 0) {
         throw new Error("Entre em um galpão aprovado para testar o alerta.");
       }
-      const leitura = await publicarEntradaEmAlerta(alvo);
-      setUltima(leitura);
-      Alert.alert(
-        "Alerta enviado",
-        `${alvo.nome} entrou em alerta. Feche o app (não use Forçar parada) e espere o push.`
-      );
+      if (alvos.length === 1) {
+        await dispararAlertaNosGalpoes(alvos);
+        return;
+      }
+
+      Alert.alert("Testar alerta", "Qual galpão deve entrar em alerta?", [
+        ...alvos.map((galpao) => ({
+          text: galpao.nome,
+          onPress: () => {
+            void dispararAlertaNosGalpoes([galpao]);
+          },
+        })),
+        {
+          text: "Todos os galpões",
+          onPress: () => {
+            void dispararAlertaNosGalpoes(alvos);
+          },
+        },
+        { text: "Cancelar", style: "cancel" as const },
+      ]);
     } catch (error) {
       const mensagem =
         error instanceof Error ? error.message : "Não foi possível gerar o alerta.";
       Alert.alert("Alerta de teste", mensagem);
     }
-  }, [user]);
+  }, [dispararAlertaNosGalpoes, user]);
 
   const iniciar = useCallback(async () => {
     try {

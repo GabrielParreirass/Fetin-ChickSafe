@@ -267,7 +267,7 @@ export default function HomeLogadaScreen() {
             style={[styles.secondaryButton, styles.footerButton]}
             onPress={() => void testarAlerta()}
           >
-            <Text style={styles.secondaryButtonText}>Testar alerta no galpão</Text>
+            <Text style={styles.secondaryButtonText}>Testar alerta nos galpões</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.secondaryButton, styles.footerButton]}
