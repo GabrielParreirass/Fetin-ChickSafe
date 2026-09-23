@@ -9,10 +9,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const segments = useSegments();
   const router = useRouter();
   const recuperando = Boolean(recuperacaoPendente);
+  const partes = [...segments];
   const naRedefinicao =
-    segments[0] === "(auth)" &&
-    segments[1] === "redefinir" &&
-    segments[2] === "page";
+    partes[0] === "(auth)" &&
+    partes[1] === "redefinir" &&
+    partes[2] === "page";
 
   useEffect(() => {
     if (loading) {
@@ -24,7 +25,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       return;
     }
 
-    const inPrivate = segments[0] === "(private)";
+    const inPrivate = partes[0] === "(private)";
 
     if (!session && inPrivate) {
       router.replace("/");
@@ -36,7 +37,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     }
   }, [loading, session, segments, router, recuperando, naRedefinicao]);
 
-  const inPrivate = segments[0] === "(private)";
+  const inPrivate = partes[0] === "(private)";
   const redirecionando =
     loading ||
     (recuperando && !naRedefinicao) ||
