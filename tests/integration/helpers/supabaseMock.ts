@@ -9,6 +9,7 @@ export type MockQuery = {
   select: jest.Mock;
   insert: jest.Mock;
   update: jest.Mock;
+  delete: jest.Mock;
   eq: jest.Mock;
   order: jest.Mock;
   limit: jest.Mock;
@@ -25,6 +26,7 @@ export function createMockQuery<T = unknown>(result: QueryResult<T>): MockQuery 
   query.select = jest.fn(() => query);
   query.insert = jest.fn(() => query);
   query.update = jest.fn(() => query);
+  query.delete = jest.fn(() => query);
   query.eq = jest.fn(() => query);
   query.order = jest.fn(() => query);
   query.limit = jest.fn(() => query);

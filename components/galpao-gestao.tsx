@@ -290,11 +290,12 @@ export function useGalpaoGestao(opcoes: {
                   acesso.papel !== "dono" &&
                   !ehAcessoPendente(acesso) ? (
                     <TouchableOpacity
+                      style={styles.removerButton}
                       onPress={() => void confirmarRemover(acesso.usuarioId)}
                       disabled={salvando}
                       accessibilityLabel={`Remover acesso de ${acesso.nome}`}
                     >
-                      <Text style={styles.removerText}>
+                      <Text style={styles.removerButtonText}>
                         {pendenteAcao === `remover:${acesso.usuarioId}`
                           ? "Confirmar"
                           : "Remover"}
@@ -324,8 +325,8 @@ export function useGalpaoGestao(opcoes: {
             {erro && modal === "acesso" ? (
               <Text style={styles.erro}>{erro}</Text>
             ) : null}
-            <TouchableOpacity onPress={fechar}>
-              <Text style={styles.cancelText}>Fechar</Text>
+            <TouchableOpacity style={styles.fecharButton} onPress={fechar}>
+              <Text style={styles.fecharButtonText}>Fechar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -431,8 +432,8 @@ export function useGalpaoGestao(opcoes: {
                   </TouchableOpacity>
                 </>
               ) : null}
-              <TouchableOpacity onPress={fechar}>
-                <Text style={styles.cancelText}>Fechar</Text>
+              <TouchableOpacity style={styles.fecharButton} onPress={fechar}>
+                <Text style={styles.fecharButtonText}>Fechar</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -472,12 +473,19 @@ const styles = StyleSheet.create({
     color: cores.tinta,
     marginBottom: 8,
   },
-  cancelText: {
-    color: cores.tinta,
-    textAlign: "center",
-    fontSize: 16,
-    textDecorationLine: "underline",
+  fecharButton: {
+    borderWidth: 1.5,
+    borderColor: cores.borda,
+    backgroundColor: cores.superficieSuave,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
     marginTop: 8,
+  },
+  fecharButtonText: {
+    color: cores.tinta,
+    fontSize: 16,
+    fontWeight: "600",
   },
   emptyAcessoText: {
     fontSize: 15,
@@ -584,6 +592,18 @@ const styles = StyleSheet.create({
   dangerButtonText: {
     color: cores.erro,
     fontSize: 16,
+    fontWeight: "600",
+  },
+  removerButton: {
+    borderWidth: 1.5,
+    borderColor: cores.erro,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  removerButtonText: {
+    color: cores.erro,
+    fontSize: 13,
     fontWeight: "600",
   },
 });

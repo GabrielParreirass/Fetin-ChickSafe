@@ -30,9 +30,13 @@ export default function HomeLogadaScreen() {
   const { galpoes, leituras, carregando, agora, carregar } = useHomeGalpoes(
     user?.id
   );
-  const [modal, setModal] = useState<"entrar" | "criar" | null>(null);
+  const [modal, setModal] = useState<"entrar" | "criar" | "criado" | null>(null);
   const [codigo, setCodigo] = useState("");
   const [nomeGalpao, setNomeGalpao] = useState("");
+  const [nomeDispositivo, setNomeDispositivo] = useState("");
+  const [codigoGerado, setCodigoGerado] = useState("");
+  const [dispositivoGerado, setDispositivoGerado] = useState("");
+  const [chaveGerada, setChaveGerada] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   const primeiroNome = (usuario?.nome ?? "produtor").split(" ")[0];
@@ -63,6 +67,10 @@ export default function HomeLogadaScreen() {
     setModal(null);
     setCodigo("");
     setNomeGalpao("");
+    setNomeDispositivo("");
+    setCodigoGerado("");
+    setDispositivoGerado("");
+    setChaveGerada("");
   };
 
   const confirmarAcao = async () => {
@@ -83,11 +91,17 @@ export default function HomeLogadaScreen() {
           Alert.alert("Galpão", "Informe o nome do galpão.");
           return;
         }
-        const criado = await criarGalpao(nomeGalpao);
-        Alert.alert(
-          "Galpão criado",
-          `Código para convidar outros usuários: ${criado.codigo}`
-        );
+        if (!nomeDispositivo.trim()) {
+          Alert.alert("Galpão", "Informe o nome do dispositivo.");
+          return;
+        }
+        const criado = await criarGalpao(nomeGalpao, nomeDispositivo);
+        setCodigoGerado(criado.galpao.codigo ?? "");
+        setDispositivoGerado(criado.dispositivoNome);
+        setChaveGerada(criado.chave);
+        setModal("criado");
+        await carregar();
+        return;
       }
       fecharModal();
       await carregar();
@@ -273,37 +287,83 @@ export default function HomeLogadaScreen() {
       {modaisGestao}
 
       <Modal
-        visible={modal === "entrar" || modal === "criar"}
+        visible={modal === "entrar" || modal === "criar" || modal === "criado"}
         transparent
         animationType="fade"
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {modal === "criar" ? "Novo galpão" : "Entrar em um galpão"}
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder={modal === "criar" ? "Nome do galpão" : "Código"}
-              placeholderTextColor={cores.tintaSuave}
-              autoCapitalize={modal === "criar" ? "sentences" : "characters"}
-              value={modal === "criar" ? nomeGalpao : codigo}
-              onChangeText={modal === "criar" ? setNomeGalpao : setCodigo}
-            />
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={confirmarAcao}
-              disabled={salvando}
-            >
-              {salvando ? (
-                <ActivityIndicator color={cores.fundo} />
-              ) : (
-                <Text style={styles.primaryButtonText}>Confirmar</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={fecharModal}>
-              <Text style={styles.cancelText}>Cancelar</Text>
-            </TouchableOpacity>
+            {modal === "criado" ? (
+              <>
+                <Text style={styles.modalTitle}>Galpão criado</Text>
+                <Text style={styles.campoLabel}>Código para convidar</Text>
+                <Text style={styles.campoValor} selectable>
+                  {codigoGerado}
+                </Text>
+                <Text style={styles.campoLabel}>Dispositivo</Text>
+                <Text style={styles.campoValor}>{dispositivoGerado}</Text>
+                <Text style={styles.campoLabel}>Chave do ESP</Text>
+                <Text style={styles.chaveDispositivo} selectable>
+                  {chaveGerada}
+                </Text>
+                <Text style={styles.campoAjuda}>
+                  Grave esta chave no ESP como X-Device-Key. Ela não aparece
+                  de novo. No banco fica só o hash.
+                </Text>
+                <TouchableOpacity
+                  style={styles.primaryButton}
+                  onPress={fecharModal}
+                >
+                  <Text style={styles.primaryButtonText}>Concluir</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>
+                  {modal === "criar" ? "Novo galpão" : "Entrar em um galpão"}
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={modal === "criar" ? "Nome do galpão" : "Código"}
+                  placeholderTextColor={cores.tintaSuave}
+                  autoCapitalize={modal === "criar" ? "sentences" : "characters"}
+                  value={modal === "criar" ? nomeGalpao : codigo}
+                  onChangeText={modal === "criar" ? setNomeGalpao : setCodigo}
+                />
+                {modal === "criar" ? (
+                  <>
+                    <Text style={styles.campoLabel}>Dispositivo ESP</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Nome do dispositivo"
+                      placeholderTextColor={cores.tintaSuave}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      value={nomeDispositivo}
+                      onChangeText={setNomeDispositivo}
+                    />
+                    <Text style={styles.campoAjuda}>
+                      Ex.: ESP-2. O app gera a chave e grava o dispositivo
+                      neste galpão.
+                    </Text>
+                  </>
+                ) : null}
+                <TouchableOpacity
+                  style={styles.primaryButton}
+                  onPress={confirmarAcao}
+                  disabled={salvando}
+                >
+                  {salvando ? (
+                    <ActivityIndicator color={cores.fundo} />
+                  ) : (
+                    <Text style={styles.primaryButtonText}>Confirmar</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity onPress={fecharModal}>
+                  <Text style={styles.cancelText}>Cancelar</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -550,6 +610,12 @@ const styles = StyleSheet.create({
   campoAjuda: {
     fontSize: 12,
     color: cores.tintaFraca,
+    marginBottom: 8,
+  },
+  chaveDispositivo: {
+    fontSize: 14,
+    color: cores.tinta,
+    fontWeight: "600",
     marginBottom: 8,
   },
   erroAcesso: {

@@ -37,7 +37,7 @@ export function formatarCorrente(correnteMa: number): string {
   return `${Math.round(correnteMa)} mA`;
 }
 
-export const MINUTOS_SEM_SINAL = 5;
+export const MINUTOS_SEM_SINAL = 60;
 
 export type RotuloStatus = "Normal" | "Alerta" | "Sem dados" | "Offline";
 

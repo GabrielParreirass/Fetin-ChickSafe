@@ -1,5 +1,7 @@
 import { cores } from "@/constants/tema";
 import {
+  ocultarNotificacao,
+  ocultarNotificacoes,
   listarNotificacoes,
   marcarNotificacaoLida,
 } from "@/lib/database";
@@ -31,18 +33,28 @@ export function SinoNotificacoes({ usuarioId }: { usuarioId?: string }) {
   const [itens, setItens] = useState<Notificacao[]>([]);
   const [carregando, setCarregando] = useState(false);
 
+  const cargaId = useRef(0);
+
   const carregar = useCallback(async () => {
     if (!usuarioId) {
       setItens([]);
       return;
     }
+    const id = ++cargaId.current;
     try {
       setCarregando(true);
-      setItens(await listarNotificacoes(usuarioId));
+      const lista = await listarNotificacoes(usuarioId);
+      if (id === cargaId.current) {
+        setItens(lista);
+      }
     } catch {
-      setItens([]);
+      if (id === cargaId.current) {
+        setItens([]);
+      }
     } finally {
-      setCarregando(false);
+      if (id === cargaId.current) {
+        setCarregando(false);
+      }
     }
   }, [usuarioId]);
 
@@ -111,6 +123,33 @@ export function SinoNotificacoes({ usuarioId }: { usuarioId?: string }) {
     }
   };
 
+  const limparUma = async (item: Notificacao) => {
+    const anterior = itens;
+    cargaId.current += 1;
+    setCarregando(false);
+    setItens((atual) => atual.filter((notificacao) => notificacao.id !== item.id));
+    try {
+      await ocultarNotificacao(item.id);
+    } catch {
+      setItens(anterior);
+    }
+  };
+
+  const limparTodas = async () => {
+    if (!usuarioId || itens.length === 0) {
+      return;
+    }
+    const anterior = itens;
+    cargaId.current += 1;
+    setCarregando(false);
+    setItens([]);
+    try {
+      await ocultarNotificacoes(usuarioId);
+    } catch {
+      setItens(anterior);
+    }
+  };
+
   return (
     <>
       <TouchableOpacity
@@ -144,7 +183,18 @@ export function SinoNotificacoes({ usuarioId }: { usuarioId?: string }) {
           onPress={() => setAberta(false)}
         >
           <Pressable style={styles.modalContent} onPress={() => {}}>
-            <Text style={styles.modalTitle}>Notificações</Text>
+            <View style={styles.cabecalho}>
+              <Text style={styles.modalTitle}>Notificações</Text>
+              {itens.length > 0 ? (
+                <TouchableOpacity
+                  style={styles.limparTodasButton}
+                  onPress={() => void limparTodas()}
+                  accessibilityLabel="Limpar todas as notificações"
+                >
+                  <Text style={styles.limparTodasText}>Limpar todas</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
             {carregando && itens.length === 0 ? (
               <ActivityIndicator color={cores.tinta} />
             ) : itens.length === 0 ? (
@@ -156,23 +206,37 @@ export function SinoNotificacoes({ usuarioId }: { usuarioId?: string }) {
                 showsVerticalScrollIndicator={false}
               >
                 {itens.map((item) => (
-                  <TouchableOpacity
+                  <View
                     key={item.id}
                     style={[styles.item, !item.lida && styles.itemNaoLida]}
-                    onPress={() => void abrirItem(item)}
-                    accessibilityLabel={item.titulo}
                   >
-                    <Text style={styles.itemTitulo}>{item.titulo}</Text>
-                    <Text style={styles.itemMensagem}>{item.mensagem}</Text>
-                    <Text style={styles.itemQuando}>
-                      {formatarQuandoNotificacao(item.criadoEm)}
-                    </Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.itemCorpo}
+                      onPress={() => void abrirItem(item)}
+                      accessibilityLabel={item.titulo}
+                    >
+                      <Text style={styles.itemTitulo}>{item.titulo}</Text>
+                      <Text style={styles.itemMensagem}>{item.mensagem}</Text>
+                      <Text style={styles.itemQuando}>
+                        {formatarQuandoNotificacao(item.criadoEm)}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.limparUmaButton}
+                      onPress={() => void limparUma(item)}
+                      accessibilityLabel={`Limpar ${item.titulo}`}
+                    >
+                      <MaterialIcons name="close" size={16} color={cores.tintaSuave} />
+                    </TouchableOpacity>
+                  </View>
                 ))}
               </ScrollView>
             )}
-            <TouchableOpacity onPress={() => setAberta(false)}>
-              <Text style={styles.fechar}>Fechar</Text>
+            <TouchableOpacity
+              style={styles.fecharButton}
+              onPress={() => setAberta(false)}
+            >
+              <Text style={styles.fecharButtonText}>Fechar</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
@@ -207,39 +271,67 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.3)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 48,
+    padding: 28,
   },
   modalContent: {
     backgroundColor: cores.branco,
-    borderRadius: 16,
-    padding: 14,
-    width: 280,
+    borderRadius: 20,
+    padding: 18,
+    width: 360,
     maxWidth: "100%",
-    maxHeight: 320,
+    maxHeight: 480,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  cabecalho: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 12,
   },
   modalTitle: {
-    fontSize: 17,
+    flex: 1,
+    fontSize: 20,
     fontWeight: "bold",
     color: cores.tinta,
-    marginBottom: 10,
-    paddingHorizontal: 4,
+  },
+  limparTodasButton: {
+    borderWidth: 1.5,
+    borderColor: cores.borda,
+    backgroundColor: cores.superficieSuave,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  limparTodasText: {
+    color: cores.tinta,
+    fontSize: 13,
+    fontWeight: "600",
   },
   lista: {
-    maxHeight: 220,
+    maxHeight: 340,
   },
   vazia: {
-    fontSize: 14,
+    fontSize: 15,
     color: cores.tintaSuave,
     textAlign: "center",
-    lineHeight: 20,
-    marginVertical: 10,
+    lineHeight: 22,
+    marginVertical: 16,
     paddingHorizontal: 8,
   },
   item: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
     paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingLeft: 12,
+    paddingRight: 8,
     marginBottom: 8,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: cores.divisor,
     backgroundColor: cores.branco,
@@ -248,27 +340,45 @@ const styles = StyleSheet.create({
     backgroundColor: cores.naoLida,
     borderColor: cores.bordaSuave,
   },
+  itemCorpo: {
+    flex: 1,
+  },
   itemTitulo: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "700",
     color: cores.tinta,
   },
   itemMensagem: {
-    fontSize: 13,
+    fontSize: 14,
     color: cores.tintaSuave,
     marginTop: 4,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   itemQuando: {
     fontSize: 12,
     color: cores.tintaFraca,
     marginTop: 6,
   },
-  fechar: {
-    color: cores.tinta,
-    textAlign: "center",
-    fontSize: 15,
-    textDecorationLine: "underline",
+  limparUmaButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: cores.superficieSuave,
+  },
+  fecharButton: {
+    borderWidth: 1.5,
+    borderColor: cores.borda,
+    backgroundColor: cores.superficieSuave,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
     marginTop: 8,
+  },
+  fecharButtonText: {
+    color: cores.tinta,
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

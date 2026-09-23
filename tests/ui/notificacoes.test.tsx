@@ -4,6 +4,8 @@ import { SinoNotificacoes } from "@/components/notificacoes";
 import {
   listarNotificacoes,
   marcarNotificacaoLida,
+  ocultarNotificacao,
+  ocultarNotificacoes,
 } from "@/lib/database";
 
 jest.mock("expo-router", () => {
@@ -24,6 +26,8 @@ jest.mock("expo-router", () => {
 jest.mock("@/lib/database", () => ({
   listarNotificacoes: jest.fn(),
   marcarNotificacaoLida: jest.fn(),
+  ocultarNotificacao: jest.fn(),
+  ocultarNotificacoes: jest.fn(),
 }));
 
 jest.mock("@/lib/supabase", () => ({
@@ -63,6 +67,8 @@ describe("SinoNotificacoes", () => {
     jest.clearAllMocks();
     (listarNotificacoes as jest.Mock).mockResolvedValue([]);
     (marcarNotificacaoLida as jest.Mock).mockResolvedValue(undefined);
+    (ocultarNotificacao as jest.Mock).mockResolvedValue(undefined);
+    (ocultarNotificacoes as jest.Mock).mockResolvedValue(undefined);
   });
 
   it("mostra o sino sem badge quando não há pendências", async () => {
@@ -145,6 +151,46 @@ describe("SinoNotificacoes", () => {
       expect(router.push).toHaveBeenCalledWith(
         "/(private)/galpao/galpao-1/page"
       );
+    });
+  });
+
+  it("limpa uma notificação já vista", async () => {
+    (listarNotificacoes as jest.Mock).mockResolvedValue([
+      pedido,
+      {
+        ...pedido,
+        id: "n-2",
+        titulo: "Sensor offline",
+        mensagem: "O galpão Galpão Inatel está sem sinal.",
+        lida: true,
+      },
+    ]);
+    render(<SinoNotificacoes usuarioId="user-1" />);
+    fireEvent.press(
+      await screen.findByLabelText("Abrir notificações, 1 não lidas")
+    );
+
+    fireEvent.press(screen.getByLabelText("Limpar Sensor offline"));
+
+    await waitFor(() => {
+      expect(ocultarNotificacao).toHaveBeenCalledWith("n-2");
+      expect(screen.queryByText("O galpão Galpão Inatel está sem sinal.")).toBeNull();
+    });
+    expect(screen.getByText("Bruno pediu acesso ao galpão Norte.")).toBeOnTheScreen();
+  });
+
+  it("limpa todas as notificações de uma vez", async () => {
+    (listarNotificacoes as jest.Mock).mockResolvedValue([pedido]);
+    render(<SinoNotificacoes usuarioId="user-1" />);
+    fireEvent.press(
+      await screen.findByLabelText("Abrir notificações, 1 não lidas")
+    );
+
+    fireEvent.press(screen.getByLabelText("Limpar todas as notificações"));
+
+    await waitFor(() => {
+      expect(ocultarNotificacoes).toHaveBeenCalledWith("user-1");
+      expect(screen.getByText("Nenhuma notificação ainda.")).toBeOnTheScreen();
     });
   });
 
