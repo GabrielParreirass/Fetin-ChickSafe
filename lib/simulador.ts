@@ -55,8 +55,12 @@ export async function simularTickEsp32(galpoes: Galpao[]): Promise<Leitura> {
   return publicarLeituraEsp32(gerarLeituraEsp32(escolhido.id));
 }
 
+export function galpoesParaTesteAlerta(galpoes: Galpao[]): Galpao[] {
+  return galpoes.filter((galpao) => galpao.statusAcesso === "aprovado");
+}
+
 export function galpaoParaTesteAlerta(galpoes: Galpao[]): Galpao | null {
-  return galpoes.find((galpao) => galpao.statusAcesso === "aprovado") ?? null;
+  return galpoesParaTesteAlerta(galpoes)[0] ?? null;
 }
 
 export function leituraNormalDeTeste(
@@ -84,4 +88,14 @@ export function leituraAlertaDeTeste(
 export async function publicarEntradaEmAlerta(galpao: Galpao): Promise<Leitura> {
   await publicarLeituraEsp32(leituraNormalDeTeste(galpao));
   return publicarLeituraEsp32(leituraAlertaDeTeste(galpao));
+}
+
+export async function publicarEntradaEmAlertaNosGalpoes(
+  galpoes: Galpao[]
+): Promise<Leitura | null> {
+  let ultima: Leitura | null = null;
+  for (const galpao of galpoes) {
+    ultima = await publicarEntradaEmAlerta(galpao);
+  }
+  return ultima;
 }
