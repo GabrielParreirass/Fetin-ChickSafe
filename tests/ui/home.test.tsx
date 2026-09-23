@@ -217,7 +217,7 @@ describe("HomeLogadaScreen", () => {
     (criarGalpao as jest.Mock).mockResolvedValue({
       galpao: galpaoNorte,
       dispositivoNome: "ESP-2",
-      chave: "abc123chave",
+      chave: "ESP-2",
     });
     render(<HomeLogadaScreen />);
     await screen.findByText("Olá, Maria!");
@@ -237,8 +237,8 @@ describe("HomeLogadaScreen", () => {
       expect(criarGalpao).toHaveBeenCalledWith("Galpão Norte", "ESP-2");
       expect(screen.getByText("Galpão criado")).toBeOnTheScreen();
       expect(screen.getByText("ABC123")).toBeOnTheScreen();
+      expect(screen.getByText("X-Device-Key")).toBeOnTheScreen();
       expect(screen.getByText("ESP-2")).toBeOnTheScreen();
-      expect(screen.getByText("abc123chave")).toBeOnTheScreen();
     });
   });
 

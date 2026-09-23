@@ -300,15 +300,12 @@ export default function HomeLogadaScreen() {
                 <Text style={styles.campoValor} selectable>
                   {codigoGerado}
                 </Text>
-                <Text style={styles.campoLabel}>Dispositivo</Text>
-                <Text style={styles.campoValor}>{dispositivoGerado}</Text>
-                <Text style={styles.campoLabel}>Chave do ESP</Text>
+                <Text style={styles.campoLabel}>X-Device-Key</Text>
                 <Text style={styles.chaveDispositivo} selectable>
-                  {chaveGerada}
+                  {chaveGerada || dispositivoGerado}
                 </Text>
                 <Text style={styles.campoAjuda}>
-                  Grave esta chave no ESP como X-Device-Key. Ela não aparece
-                  de novo. No banco fica só o hash.
+                  No ESP, o header X-Device-Key deve ser exatamente este nome.
                 </Text>
                 <TouchableOpacity
                   style={styles.primaryButton}
@@ -343,8 +340,7 @@ export default function HomeLogadaScreen() {
                       onChangeText={setNomeDispositivo}
                     />
                     <Text style={styles.campoAjuda}>
-                      Ex.: ESP-2. O app gera a chave e grava o dispositivo
-                      neste galpão.
+                      Ex.: ESP-2. Esse nome é a chave que o ESP envia.
                     </Text>
                   </>
                 ) : null}

@@ -126,7 +126,7 @@ describe("criarGalpao", () => {
       data: {
         galpao: GALPAO_ROW,
         dispositivo_nome: "ESP-2",
-        chave: "abc123chave",
+        chave: "ESP-2",
       },
       error: null,
     });
@@ -134,7 +134,7 @@ describe("criarGalpao", () => {
     await expect(criarGalpao("  Galpão Norte  ", "  ESP-2  ")).resolves.toEqual({
       galpao: GALPAO,
       dispositivoNome: "ESP-2",
-      chave: "abc123chave",
+      chave: "ESP-2",
     });
     expect(supabaseMocks().rpc).toHaveBeenCalledWith("criar_galpao", {
       p_nome: "Galpão Norte",
