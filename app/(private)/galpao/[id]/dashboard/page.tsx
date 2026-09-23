@@ -1,3 +1,4 @@
+import { cores } from "@/constants/tema";
 import { ehDono } from "@/lib/acesso";
 import { compartilharPdfHtml } from "@/lib/compartilhar";
 import { useAuth } from "@/contexts/auth";
@@ -121,14 +122,14 @@ export default function DashboardGalpaoScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#f9ca0a" barStyle="dark-content" />
+      <StatusBar backgroundColor={cores.fundo} barStyle="dark-content" />
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backButton}
           accessibilityLabel="Voltar"
         >
-          <MaterialIcons name="arrow-back" size={26} color="#333" />
+          <MaterialIcons name="arrow-back" size={26} color={cores.tinta} />
         </TouchableOpacity>
         <Text style={styles.title}>Dashboard</Text>
         <TouchableOpacity
@@ -139,16 +140,16 @@ export default function DashboardGalpaoScreen() {
           accessibilityLabel="Exportar dashboard"
         >
           {exportando ? (
-            <ActivityIndicator color="#333" size="small" />
+            <ActivityIndicator color={cores.tinta} size="small" />
           ) : (
-            <MaterialIcons name="picture-as-pdf" size={26} color="#333" />
+            <MaterialIcons name="picture-as-pdf" size={26} color={cores.tinta} />
           )}
         </TouchableOpacity>
       </View>
 
       <View style={styles.body}>
         {carregando ? (
-          <ActivityIndicator color="#333" style={styles.loader} />
+          <ActivityIndicator color={cores.tinta} style={styles.loader} />
         ) : !galpao || !ehDono(galpao.papel) ? (
           <Text style={styles.emptyText}>
             Só o dono pode ver o dashboard deste galpão.
@@ -212,12 +213,12 @@ export default function DashboardGalpaoScreen() {
                   data={serieTensao}
                   width={LARGURA_GRAFICO}
                   height={180}
-                  color="#333"
+                  color={cores.tinta}
                   thickness={2}
                   isAnimated={false}
                   hideDataPoints={serieTensao.length > 16}
-                  yAxisColor="#ccc"
-                  xAxisColor="#ccc"
+                  yAxisColor={cores.eixo}
+                  xAxisColor={cores.eixo}
                   yAxisTextStyle={styles.eixo}
                   xAxisLabelTextStyle={styles.eixo}
                   noOfSections={4}
@@ -228,7 +229,7 @@ export default function DashboardGalpaoScreen() {
                   showReferenceLine1
                   referenceLine1Position={galpao.limiarTensao}
                   referenceLine1Config={{
-                    color: "#F44336",
+                    color: cores.alerta,
                     dashWidth: 4,
                     dashGap: 3,
                   }}
@@ -245,12 +246,12 @@ export default function DashboardGalpaoScreen() {
                   data={serieCorrente}
                   width={LARGURA_GRAFICO}
                   height={180}
-                  color="#333"
+                  color={cores.tinta}
                   thickness={2}
                   isAnimated={false}
                   hideDataPoints={serieCorrente.length > 16}
-                  yAxisColor="#ccc"
-                  xAxisColor="#ccc"
+                  yAxisColor={cores.eixo}
+                  xAxisColor={cores.eixo}
                   yAxisTextStyle={styles.eixo}
                   xAxisLabelTextStyle={styles.eixo}
                   noOfSections={4}
@@ -263,7 +264,7 @@ export default function DashboardGalpaoScreen() {
                   showReferenceLine1
                   referenceLine1Position={galpao.limiarCorrente}
                   referenceLine1Config={{
-                    color: "#F44336",
+                    color: cores.alerta,
                     dashWidth: 4,
                     dashGap: 3,
                   }}
@@ -277,7 +278,7 @@ export default function DashboardGalpaoScreen() {
                     radius={80}
                     innerRadius={48}
                     showText
-                    textColor="#fff"
+                    textColor={cores.branco}
                     fontWeight="700"
                     isAnimated={false}
                   />
@@ -298,10 +299,10 @@ export default function DashboardGalpaoScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9ca0a",
+    backgroundColor: cores.fundo,
   },
   header: {
-    backgroundColor: "#f9ca0a",
+    backgroundColor: cores.fundo,
     flexDirection: "row",
     alignItems: "center",
     paddingTop: 50,
@@ -316,7 +317,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
+    color: cores.tinta,
   },
   exportButton: {
     padding: 4,
@@ -325,7 +326,7 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: cores.branco,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     padding: 20,
@@ -339,12 +340,12 @@ const styles = StyleSheet.create({
   subtitulo: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 16,
   },
   emptyText: {
     fontSize: 16,
-    color: "#555",
+    color: cores.tintaSuave,
     textAlign: "center",
     marginTop: 24,
     lineHeight: 24,
@@ -357,41 +358,41 @@ const styles = StyleSheet.create({
   },
   resumoCard: {
     width: "48%",
-    backgroundColor: "#f1f1f1",
+    backgroundColor: cores.superficieSuave,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
   },
   resumoRotulo: {
     fontSize: 12,
-    color: "#555",
+    color: cores.tintaSuave,
     fontWeight: "600",
   },
   resumoValor: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#333",
+    color: cores.tinta,
     marginTop: 6,
   },
   resumoDetalhe: {
     fontSize: 11,
-    color: "#777",
+    color: cores.tintaFraca,
     marginTop: 4,
   },
   graficoTitulo: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#333",
+    color: cores.tinta,
     marginTop: 16,
     marginBottom: 4,
   },
   graficoAjuda: {
     fontSize: 12,
-    color: "#777",
+    color: cores.tintaFraca,
     marginBottom: 8,
   },
   eixo: {
-    color: "#555",
+    color: cores.tintaSuave,
     fontSize: 10,
   },
   pizzaWrap: {
@@ -405,6 +406,6 @@ const styles = StyleSheet.create({
   },
   legendaItem: {
     fontSize: 13,
-    color: "#555",
+    color: cores.tintaSuave,
   },
 });

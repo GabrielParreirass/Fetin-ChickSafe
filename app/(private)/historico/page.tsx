@@ -1,5 +1,6 @@
+import { cores } from "@/constants/tema";
 import { useAuth } from "@/contexts/auth";
-import { formatarDataHora } from "@/app/utils/historico";
+import { useHistorico } from "@/hooks/use-historico";
 import { compartilharPdfHtml } from "@/lib/compartilhar";
 import {
   avancarMes,
@@ -7,21 +8,19 @@ import {
   diasDaSemana,
   formatarDataAcessivel,
   formatarDataBr,
+  formatarDataHora,
   inicioDoMes,
   mesmoDia,
   rotuloMesAno,
 } from "@/lib/calendario";
-import { listarGalpoesDoUsuario, listarLeituras } from "@/lib/database";
 import { htmlHistorico, nomeArquivoHtmlHistorico } from "@/lib/exportar";
 import {
-  extrairMudancas,
   filtrarMudancas,
   type FiltroCampoMudanca,
-  type MudancaLeitura,
 } from "@/lib/historico";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -46,8 +45,8 @@ type AlvoCalendario = "inicio" | "fim";
 export default function HistoricoScreen() {
   const { galpaoId } = useLocalSearchParams<{ galpaoId?: string }>();
   const { user } = useAuth();
-  const [itens, setItens] = useState<MudancaLeitura[]>([]);
-  const [carregando, setCarregando] = useState(true);
+  const galpaoSelecionado = typeof galpaoId === "string" ? galpaoId : undefined;
+  const { itens, carregando } = useHistorico(user?.id, galpaoSelecionado);
   const [campo, setCampo] = useState<FiltroCampoMudanca>("todos");
   const [dataInicio, setDataInicio] = useState<Date | null>(null);
   const [dataFim, setDataFim] = useState<Date | null>(null);
@@ -56,58 +55,6 @@ export default function HistoricoScreen() {
   );
   const [mesVisivel, setMesVisivel] = useState(() => inicioDoMes(new Date()));
   const [exportando, setExportando] = useState(false);
-
-  useFocusEffect(
-    useCallback(() => {
-      let ativo = true;
-
-      (async () => {
-        if (!user) {
-          return;
-        }
-
-        try {
-          setCarregando(true);
-          const galpoes = await listarGalpoesDoUsuario(user.id);
-          const nomesPorGalpao = Object.fromEntries(
-            galpoes.map((item) => [item.id, item.nome])
-          );
-          const limiaresPorGalpao = Object.fromEntries(
-            galpoes.map((item) => [
-              item.id,
-              { tensao: item.limiarTensao, corrente: item.limiarCorrente },
-            ])
-          );
-
-          const ids = galpaoId
-            ? [galpaoId]
-            : galpoes.map((item) => item.id);
-
-          const leituras = (
-            await Promise.all(ids.map((id) => listarLeituras(id)))
-          ).flat();
-
-          if (ativo) {
-            setItens(extrairMudancas(leituras, nomesPorGalpao, limiaresPorGalpao));
-          }
-        } catch (error) {
-          const mensagem =
-            error instanceof Error
-              ? error.message
-              : "Não foi possível carregar o histórico.";
-          Alert.alert("Histórico", mensagem);
-        } finally {
-          if (ativo) {
-            setCarregando(false);
-          }
-        }
-      })();
-
-      return () => {
-        ativo = false;
-      };
-    }, [galpaoId, user])
-  );
 
   const filtrados = useMemo(
     () =>
@@ -175,7 +122,7 @@ export default function HistoricoScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#f9ca0a" barStyle="dark-content" />
+      <StatusBar backgroundColor={cores.fundo} barStyle="dark-content" />
 
       <View style={styles.header}>
         <TouchableOpacity
@@ -183,7 +130,7 @@ export default function HistoricoScreen() {
           style={styles.backButton}
           accessibilityLabel="Voltar"
         >
-          <MaterialIcons name="arrow-back" size={26} color="#333" />
+          <MaterialIcons name="arrow-back" size={26} color={cores.tinta} />
         </TouchableOpacity>
         <Text style={styles.title}>Histórico</Text>
         <TouchableOpacity
@@ -194,9 +141,9 @@ export default function HistoricoScreen() {
           accessibilityLabel="Exportar histórico"
         >
           {exportando ? (
-            <ActivityIndicator color="#333" size="small" />
+            <ActivityIndicator color={cores.tinta} size="small" />
           ) : (
-            <MaterialIcons name="picture-as-pdf" size={26} color="#333" />
+            <MaterialIcons name="picture-as-pdf" size={26} color={cores.tinta} />
           )}
         </TouchableOpacity>
       </View>
@@ -232,7 +179,7 @@ export default function HistoricoScreen() {
             onPress={() => abrirCalendario("inicio")}
             accessibilityLabel="Escolher data inicial"
           >
-            <MaterialIcons name="calendar-today" size={18} color="#333" />
+            <MaterialIcons name="calendar-today" size={18} color={cores.tinta} />
             <Text style={styles.botaoDataTexto}>
               {dataInicio
                 ? `De ${formatarDataBr(dataInicio)}`
@@ -244,7 +191,7 @@ export default function HistoricoScreen() {
             onPress={() => abrirCalendario("fim")}
             accessibilityLabel="Escolher data final"
           >
-            <MaterialIcons name="calendar-today" size={18} color="#333" />
+            <MaterialIcons name="calendar-today" size={18} color={cores.tinta} />
             <Text style={styles.botaoDataTexto}>
               {dataFim ? `Até ${formatarDataBr(dataFim)}` : "Data final"}
             </Text>
@@ -252,7 +199,7 @@ export default function HistoricoScreen() {
         </View>
 
         {carregando ? (
-          <ActivityIndicator color="#333" style={styles.loader} />
+          <ActivityIndicator color={cores.tinta} style={styles.loader} />
         ) : itens.length === 0 ? (
           <Text style={styles.emptyText}>
             Nenhuma mudança registrada ainda. Ligue o simulador ou aguarde o
@@ -302,7 +249,7 @@ export default function HistoricoScreen() {
                 accessibilityLabel="Mês anterior"
                 style={styles.mesSeta}
               >
-                <MaterialIcons name="chevron-left" size={20} color="#333" />
+                <MaterialIcons name="chevron-left" size={20} color={cores.tinta} />
               </TouchableOpacity>
               <Text style={styles.mesTitulo}>{rotuloMesAno(mesVisivel)}</Text>
               <TouchableOpacity
@@ -310,7 +257,7 @@ export default function HistoricoScreen() {
                 accessibilityLabel="Próximo mês"
                 style={styles.mesSeta}
               >
-                <MaterialIcons name="chevron-right" size={20} color="#333" />
+                <MaterialIcons name="chevron-right" size={20} color={cores.tinta} />
               </TouchableOpacity>
             </View>
             <View style={styles.semanaRow}>
@@ -365,10 +312,10 @@ export default function HistoricoScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9ca0a",
+    backgroundColor: cores.fundo,
   },
   header: {
-    backgroundColor: "#f9ca0a",
+    backgroundColor: cores.fundo,
     flexDirection: "row",
     alignItems: "center",
     paddingTop: 50,
@@ -383,7 +330,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
+    color: cores.tinta,
   },
   exportButton: {
     padding: 4,
@@ -392,7 +339,7 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: cores.branco,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     padding: 20,
@@ -405,21 +352,21 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderWidth: 1,
-    borderColor: "#333",
+    borderColor: cores.tinta,
     borderRadius: 20,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
   chipAtivo: {
-    backgroundColor: "#333",
+    backgroundColor: cores.tinta,
   },
   chipText: {
-    color: "#333",
+    color: cores.tinta,
     fontSize: 13,
     fontWeight: "600",
   },
   chipTextAtivo: {
-    color: "#f9ca0a",
+    color: cores.fundo,
   },
   filtrosData: {
     flexDirection: "row",
@@ -429,7 +376,7 @@ const styles = StyleSheet.create({
   botaoData: {
     flex: 1,
     height: 48,
-    backgroundColor: "#f1f1f1",
+    backgroundColor: cores.superficieSuave,
     borderRadius: 10,
     paddingHorizontal: 12,
     flexDirection: "row",
@@ -438,7 +385,7 @@ const styles = StyleSheet.create({
   },
   botaoDataTexto: {
     fontSize: 14,
-    color: "#333",
+    color: cores.tinta,
     fontWeight: "600",
     flexShrink: 1,
   },
@@ -447,13 +394,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: "#555",
+    color: cores.tintaSuave,
     textAlign: "center",
     marginTop: 24,
     lineHeight: 24,
   },
   item: {
-    backgroundColor: "#f1f1f1",
+    backgroundColor: cores.superficieSuave,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -461,22 +408,22 @@ const styles = StyleSheet.create({
   itemCampo: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 4,
   },
   itemGalpao: {
     fontSize: 14,
-    color: "#555",
+    color: cores.tintaSuave,
     marginBottom: 8,
   },
   itemLinha: {
     fontSize: 15,
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 4,
   },
   itemData: {
     fontSize: 13,
-    color: "#777",
+    color: cores.tintaFraca,
     marginTop: 6,
   },
   modalContainer: {
@@ -487,7 +434,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: cores.branco,
     borderRadius: 14,
     padding: 12,
     width: 260,
@@ -496,7 +443,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 15,
     fontWeight: "bold",
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 8,
     textAlign: "center",
   },
@@ -512,7 +459,7 @@ const styles = StyleSheet.create({
   mesTitulo: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#333",
+    color: cores.tinta,
     textTransform: "capitalize",
   },
   semanaRow: {
@@ -524,7 +471,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 10,
     fontWeight: "600",
-    color: "#777",
+    color: cores.tintaFraca,
   },
   grade: {
     flexDirection: "row",
@@ -541,27 +488,27 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   diaSelecionado: {
-    backgroundColor: "#333",
+    backgroundColor: cores.tinta,
   },
   diaTexto: {
     fontSize: 12,
-    color: "#333",
+    color: cores.tinta,
   },
   diaTextoFora: {
-    color: "#999",
+    color: cores.desabilitado,
   },
   diaTextoSelecionado: {
-    color: "#f9ca0a",
+    color: cores.fundo,
     fontWeight: "700",
   },
   limparText: {
-    color: "#333",
+    color: cores.tinta,
     textAlign: "center",
     fontSize: 13,
     marginTop: 8,
   },
   cancelText: {
-    color: "#333",
+    color: cores.tinta,
     textAlign: "center",
     fontSize: 13,
     textDecorationLine: "underline",

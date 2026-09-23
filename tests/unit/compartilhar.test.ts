@@ -7,49 +7,10 @@ jest.mock("expo-print", () => ({
   printToFileAsync: jest.fn(),
 }));
 
-const mockCreate = jest.fn();
-const mockWrite = jest.fn();
-
-jest.mock("expo-file-system", () => ({
-  Paths: { cache: "/cache" },
-  File: jest.fn().mockImplementation((_dir: unknown, nome: string) => ({
-    uri: `file:///cache/${nome}`,
-    create: mockCreate,
-    write: mockWrite,
-  })),
-}));
-
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { Platform } from "react-native";
-import { compartilharCsv, compartilharPdfHtml } from "@/lib/compartilhar";
-
-describe("compartilharCsv", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(true);
-    (Sharing.shareAsync as jest.Mock).mockResolvedValue(undefined);
-  });
-
-  it("grava o CSV e abre o compartilhamento", async () => {
-    await compartilharCsv("historico.csv", "a;b");
-    expect(mockCreate).toHaveBeenCalledWith({ overwrite: true });
-    expect(mockWrite).toHaveBeenCalledWith("a;b");
-    expect(Sharing.shareAsync).toHaveBeenCalledWith("file:///cache/historico.csv", {
-      mimeType: "text/csv",
-      dialogTitle: "Exportar histórico",
-      UTI: "public.comma-separated-values-text",
-    });
-  });
-
-  it("falha quando o compartilhamento não está disponível", async () => {
-    (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(false);
-    await expect(compartilharCsv("historico.csv", "a")).rejects.toThrow(
-      "Compartilhamento indisponível neste dispositivo."
-    );
-    expect(Sharing.shareAsync).not.toHaveBeenCalled();
-  });
-});
+import { compartilharPdfHtml } from "@/lib/compartilhar";
 
 describe("compartilharPdfHtml", () => {
   beforeEach(() => {
@@ -73,6 +34,15 @@ describe("compartilharPdfHtml", () => {
       dialogTitle: "Exportar dashboard",
       UTI: "com.adobe.pdf",
     });
+  });
+
+  it("falha quando o compartilhamento não está disponível", async () => {
+    (Sharing.isAvailableAsync as jest.Mock).mockResolvedValue(false);
+    await expect(compartilharPdfHtml("<html></html>")).rejects.toThrow(
+      "Compartilhamento indisponível neste dispositivo."
+    );
+    expect(Print.printToFileAsync).not.toHaveBeenCalled();
+    expect(Sharing.shareAsync).not.toHaveBeenCalled();
   });
 });
 

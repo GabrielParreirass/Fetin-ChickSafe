@@ -121,20 +121,39 @@ describe("criarGalpao", () => {
     resetSupabaseMocks();
   });
 
-  it("envia o nome sem espaços extras", async () => {
-    supabaseMocks().rpc.mockResolvedValue({ data: GALPAO_ROW, error: null });
+  it("envia o nome do galpão e do dispositivo sem espaços extras", async () => {
+    supabaseMocks().rpc.mockResolvedValue({
+      data: {
+        galpao: GALPAO_ROW,
+        dispositivo_nome: "ESP-2",
+        chave: "ESP-2",
+      },
+      error: null,
+    });
 
-    await expect(criarGalpao("  Galpão Norte  ")).resolves.toEqual(GALPAO);
+    await expect(criarGalpao("  Galpão Norte  ", "  ESP-2  ")).resolves.toEqual({
+      galpao: GALPAO,
+      dispositivoNome: "ESP-2",
+      chave: "ESP-2",
+    });
     expect(supabaseMocks().rpc).toHaveBeenCalledWith("criar_galpao", {
       p_nome: "Galpão Norte",
+      p_dispositivo_nome: "ESP-2",
     });
+  });
+
+  it("exige o nome do dispositivo antes de chamar o RPC", async () => {
+    await expect(criarGalpao("Norte", "   ")).rejects.toThrow(
+      "Informe o nome do dispositivo."
+    );
+    expect(supabaseMocks().rpc).not.toHaveBeenCalled();
   });
 
   it("propaga erro do RPC", async () => {
     const erro = { message: "Nome obrigatório" };
     supabaseMocks().rpc.mockResolvedValue({ data: null, error: erro });
 
-    await expect(criarGalpao("Norte")).rejects.toEqual(erro);
+    await expect(criarGalpao("Norte", "ESP-2")).rejects.toEqual(erro);
   });
 });
 

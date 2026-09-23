@@ -1,6 +1,6 @@
 import { useAuth } from "@/contexts/auth";
 import { listarGalpoesDoUsuario } from "@/lib/database";
-import { simularTickEsp32 } from "@/lib/simulador";
+import { galpaoParaTesteAlerta, publicarEntradaEmAlerta, simularTickEsp32 } from "@/lib/simulador";
 import type { Leitura } from "@/lib/types";
 import {
   createContext,
@@ -21,6 +21,7 @@ type SimuladorContextValue = {
   ultima: Leitura | null;
   iniciar: () => Promise<void>;
   parar: () => void;
+  testarAlerta: () => Promise<void>;
 };
 
 const SimuladorContext = createContext<SimuladorContextValue | undefined>(
@@ -49,6 +50,30 @@ export function SimuladorProvider({ children }: { children: ReactNode }) {
     const leitura = await simularTickEsp32(galpoes);
     setUltima(leitura);
     return leitura;
+  }, [user]);
+
+  const testarAlerta = useCallback(async () => {
+    if (!user) {
+      Alert.alert("Alerta de teste", "Faça login para testar o push.");
+      return;
+    }
+    try {
+      const galpoes = await listarGalpoesDoUsuario(user.id);
+      const alvo = galpaoParaTesteAlerta(galpoes);
+      if (!alvo) {
+        throw new Error("Entre em um galpão aprovado para testar o alerta.");
+      }
+      const leitura = await publicarEntradaEmAlerta(alvo);
+      setUltima(leitura);
+      Alert.alert(
+        "Alerta enviado",
+        `${alvo.nome} entrou em alerta. Feche o app (não use Forçar parada) e espere o push.`
+      );
+    } catch (error) {
+      const mensagem =
+        error instanceof Error ? error.message : "Não foi possível gerar o alerta.";
+      Alert.alert("Alerta de teste", mensagem);
+    }
   }, [user]);
 
   const iniciar = useCallback(async () => {
@@ -89,8 +114,8 @@ export function SimuladorProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ ativo, ultima, iniciar, parar }),
-    [ativo, ultima, iniciar, parar]
+    () => ({ ativo, ultima, iniciar, parar, testarAlerta }),
+    [ativo, ultima, iniciar, parar, testarAlerta]
   );
 
   return (

@@ -1,3 +1,5 @@
+import { cores } from "@/constants/tema";
+
 export const LIMIAR_TENSAO_V = 3;
 export const LIMIAR_CORRENTE_MA = 50;
 
@@ -35,7 +37,7 @@ export function formatarCorrente(correnteMa: number): string {
   return `${Math.round(correnteMa)} mA`;
 }
 
-export const MINUTOS_SEM_SINAL = 5;
+export const MINUTOS_SEM_SINAL = 60;
 
 export type RotuloStatus = "Normal" | "Alerta" | "Sem dados" | "Offline";
 
@@ -87,15 +89,15 @@ export function formatarTempoSemSinal(
 
 export function corRotuloStatus(rotulo: RotuloStatus): string {
   if (rotulo === "Normal") {
-    return "#4CAF50";
+    return cores.normal;
   }
   if (rotulo === "Alerta") {
-    return "#F44336";
+    return cores.alerta;
   }
   if (rotulo === "Offline") {
-    return "#FF9800";
+    return cores.offline;
   }
-  return "#9E9E9E";
+  return cores.semDados;
 }
 
 export function statusGeralLeitura(

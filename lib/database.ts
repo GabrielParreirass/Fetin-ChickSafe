@@ -118,6 +118,21 @@ export async function atualizarPerfil(
   return data;
 }
 
+export async function salvarPushToken(
+  userId: string,
+  token: string | null
+): Promise<void> {
+  const pushToken = token?.trim() || null;
+  const { error } = await supabase
+    .from("usuarios")
+    .update({ push_token: pushToken })
+    .eq("id", userId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function listarGalpoesDoUsuario(userId: string): Promise<Galpao[]> {
   const { data, error } = await supabase
     .from("usuario_galpoes")
@@ -147,20 +162,45 @@ export async function entrarGalpaoPorCodigo(codigo: string): Promise<string> {
   return data as string;
 }
 
-export async function criarGalpao(nome: string): Promise<Galpao> {
+export type GalpaoCriado = {
+  galpao: Galpao;
+  dispositivoNome: string;
+  chave: string;
+};
+
+export async function criarGalpao(
+  nome: string,
+  dispositivoNome: string
+): Promise<GalpaoCriado> {
+  const nomeDisp = dispositivoNome.trim();
+  if (!nomeDisp) {
+    throw new Error("Informe o nome do dispositivo.");
+  }
+
   const { data, error } = await supabase.rpc("criar_galpao", {
     p_nome: nome.trim(),
+    p_dispositivo_nome: nomeDisp,
   });
 
   if (error) {
     throw error;
   }
 
-  const mapped = mapearGalpao(data as GalpaoRow, "dono");
-  if (!mapped) {
+  const payload = data as {
+    galpao?: GalpaoRow;
+    dispositivo_nome?: string;
+    chave?: string;
+  } | null;
+  const mapped = mapearGalpao(payload?.galpao, "dono");
+  if (!mapped || !payload?.chave) {
     throw new Error("Não foi possível criar o galpão.");
   }
-  return mapped;
+
+  return {
+    galpao: mapped,
+    dispositivoNome: payload.dispositivo_nome ?? nomeDisp,
+    chave: payload.chave,
+  };
 }
 
 export async function atualizarGalpao(input: {
@@ -354,6 +394,7 @@ export async function listarNotificacoes(userId: string): Promise<Notificacao[]>
       "id, usuario_id, tipo, titulo, mensagem, lida, galpao_id, dados, criado_em"
     )
     .eq("usuario_id", userId)
+    .eq("oculta", false)
     .order("criado_em", { ascending: false })
     .limit(50);
 
@@ -379,6 +420,29 @@ export async function marcarNotificacaoLida(id: string): Promise<void> {
     .from("notificacoes")
     .update({ lida: true })
     .eq("id", id);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function ocultarNotificacao(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("notificacoes")
+    .update({ oculta: true })
+    .eq("id", id);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function ocultarNotificacoes(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from("notificacoes")
+    .update({ oculta: true })
+    .eq("usuario_id", userId)
+    .eq("oculta", false);
 
   if (error) {
     throw error;

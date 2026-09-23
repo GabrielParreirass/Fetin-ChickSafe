@@ -1,12 +1,10 @@
 import {
-  csvHistorico,
   dataArquivo,
   htmlDashboard,
   htmlHistorico,
   svgDonut,
   svgLinha,
   alturaPdf,
-  nomeArquivoCsvHistorico,
   nomeArquivoHtmlHistorico,
   nomeArquivoPdfDashboard,
 } from "@/lib/exportar";
@@ -41,25 +39,6 @@ const bateria: Leitura = {
   corrente: 20,
   criado_em: "2026-08-28T11:00:00.000Z",
 };
-
-describe("csvHistorico", () => {
-  it("gera CSV com BOM, cabeçalho e linhas", () => {
-    const csv = csvHistorico([mudanca]);
-    expect(csv.startsWith("\uFEFF")).toBe(true);
-    expect(csv).toContain("Data/hora;Galpão;Campo;Anterior;Novo");
-    expect(csv).toContain("Galpão Norte");
-    expect(csv).toContain("Energia");
-    expect(csv).toContain("Fonte");
-    expect(csv).toContain("Bateria");
-  });
-
-  it("escapa ponto e vírgula e aspas", () => {
-    const csv = csvHistorico([
-      { ...mudanca, galpaoNome: 'Norte; "A"' },
-    ]);
-    expect(csv).toContain('"Norte; ""A"""');
-  });
-});
 
 describe("htmlDashboard", () => {
   it("monta o relatório com resumo e leituras", () => {
@@ -105,11 +84,8 @@ describe("htmlDashboard", () => {
 describe("nomes de arquivo", () => {
   const agora = new Date("2026-08-28T15:00:00");
 
-  it("usa a data local no CSV", () => {
+  it("usa a data local no HTML", () => {
     expect(dataArquivo(agora)).toBe("2026-08-28");
-    expect(nomeArquivoCsvHistorico(agora)).toBe(
-      "historico-chicksafe-2026-08-28.csv"
-    );
     expect(nomeArquivoHtmlHistorico(agora)).toBe(
       "historico-chicksafe-2026-08-28.html"
     );

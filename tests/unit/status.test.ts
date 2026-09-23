@@ -158,11 +158,11 @@ describe("sensorOffline", () => {
     expect(sensorOffline("data-invalida", agora)).toBe(false);
   });
 
-  it("marca offline no limiar de 5 minutos", () => {
+  it("marca offline no limiar de 1 hora", () => {
     expect(
-      sensorOffline("2026-08-28T11:55:00.000Z", agora, MINUTOS_SEM_SINAL)
+      sensorOffline("2026-08-28T11:00:00.000Z", agora, MINUTOS_SEM_SINAL)
     ).toBe(true);
-    expect(sensorOffline("2026-08-28T11:55:01.000Z", agora)).toBe(false);
+    expect(sensorOffline("2026-08-28T11:00:01.000Z", agora)).toBe(false);
   });
 });
 
@@ -185,7 +185,7 @@ describe("statusGalpao", () => {
   it("marca Offline quando a leitura está velha", () => {
     expect(
       statusGalpao(
-        { ...recente, criado_em: "2026-08-28T11:50:00.000Z" },
+        { ...recente, criado_em: "2026-08-28T10:00:00.000Z" },
         3,
         50,
         agora

@@ -100,4 +100,42 @@ describe("AuthGate", () => {
     expect(screen.queryByTestId("auth-splash")).toBeNull();
     expect(replace).not.toHaveBeenCalled();
   });
+
+  it("manda a recuperação de senha para a tela de nova senha", async () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      session: { user: { id: "user-1" } },
+      loading: false,
+      recuperacaoPendente: true,
+    });
+    (useSegments as jest.Mock).mockReturnValue(["(auth)", "login", "page"]);
+
+    render(
+      <AuthGate>
+        <Text>conteudo</Text>
+      </AuthGate>
+    );
+
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith("/(auth)/redefinir/page");
+    });
+    expect(replace).not.toHaveBeenCalledWith("/(private)/home/page");
+  });
+
+  it("não tira o usuário da tela de nova senha enquanto a recuperação está aberta", () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      session: { user: { id: "user-1" } },
+      loading: false,
+      recuperacaoPendente: true,
+    });
+    (useSegments as jest.Mock).mockReturnValue(["(auth)", "redefinir", "page"]);
+
+    render(
+      <AuthGate>
+        <Text>conteudo</Text>
+      </AuthGate>
+    );
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("auth-splash")).toBeNull();
+  });
 });

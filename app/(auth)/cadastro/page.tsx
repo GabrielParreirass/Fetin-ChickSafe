@@ -1,3 +1,4 @@
+import { cores } from "@/constants/tema";
 import { useAuth } from "@/contexts/auth";
 import { soDigitos } from "@/lib/database";
 import { mensagemDeErro } from "@/lib/erros";
@@ -82,14 +83,14 @@ export default function CadastroScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <StatusBar backgroundColor="#f9ca0a" barStyle="dark-content" />
+      <StatusBar backgroundColor={cores.fundo} barStyle="dark-content" />
 
       <Text style={styles.title}>Criar Conta</Text>
 
       <TextInput
         style={styles.input}
         placeholder="Nome completo"
-        placeholderTextColor="#555"
+        placeholderTextColor={cores.tintaSuave}
         value={nome}
         onChangeText={atualizarCampo(setNome)}
       />
@@ -97,7 +98,7 @@ export default function CadastroScreen() {
       <TextInput
         style={styles.input}
         placeholder="CPF"
-        placeholderTextColor="#555"
+        placeholderTextColor={cores.tintaSuave}
         keyboardType="number-pad"
         value={cpf}
         onChangeText={atualizarCampo(setCpf)}
@@ -106,7 +107,7 @@ export default function CadastroScreen() {
       <TextInput
         style={styles.input}
         placeholder="E-mail"
-        placeholderTextColor="#555"
+        placeholderTextColor={cores.tintaSuave}
         keyboardType="email-address"
         autoCapitalize="none"
         autoComplete="email"
@@ -117,7 +118,7 @@ export default function CadastroScreen() {
       <TextInput
         style={styles.input}
         placeholder="Telefone"
-        placeholderTextColor="#555"
+        placeholderTextColor={cores.tintaSuave}
         keyboardType="phone-pad"
         value={telefone}
         onChangeText={atualizarCampo(setTelefone)}
@@ -126,7 +127,7 @@ export default function CadastroScreen() {
       <TextInput
         style={styles.input}
         placeholder="Senha"
-        placeholderTextColor="#555"
+        placeholderTextColor={cores.tintaSuave}
         secureTextEntry
         value={senha}
         onChangeText={atualizarCampo(setSenha)}
@@ -135,7 +136,7 @@ export default function CadastroScreen() {
       <TextInput
         style={styles.input}
         placeholder="Confirmar senha"
-        placeholderTextColor="#555"
+        placeholderTextColor={cores.tintaSuave}
         secureTextEntry
         value={confirmarSenha}
         onChangeText={atualizarCampo(setConfirmarSenha)}
@@ -144,7 +145,7 @@ export default function CadastroScreen() {
       <TextInput
         style={styles.input}
         placeholder="Código de Galpão (opcional)"
-        placeholderTextColor="#555"
+        placeholderTextColor={cores.tintaSuave}
         autoCapitalize="characters"
         value={codigoGalpao}
         onChangeText={atualizarCampo(setCodigoGalpao)}
@@ -159,7 +160,7 @@ export default function CadastroScreen() {
         disabled={enviando}
       >
         {enviando ? (
-          <ActivityIndicator color="#f9ca0a" />
+          <ActivityIndicator color={cores.fundo} />
         ) : (
           <Text style={styles.buttonText}>Criar Conta</Text>
         )}
@@ -175,7 +176,7 @@ export default function CadastroScreen() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: "#f9ca0a",
+    backgroundColor: cores.fundo,
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
@@ -183,22 +184,22 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 40,
   },
   input: {
     width: "100%",
     height: 55,
-    backgroundColor: "#fff",
+    backgroundColor: cores.branco,
     borderRadius: 10,
     paddingHorizontal: 15,
     fontSize: 16,
     marginBottom: 20,
-    color: "#333",
+    color: cores.tinta,
   },
   erro: {
     width: "100%",
-    color: "#8B0000",
+    color: cores.erro,
     fontSize: 15,
     fontWeight: "600",
     textAlign: "center",
@@ -206,14 +207,14 @@ const styles = StyleSheet.create({
   },
   aviso: {
     width: "100%",
-    color: "#333",
+    color: cores.tinta,
     fontSize: 15,
     fontWeight: "600",
     textAlign: "center",
     marginBottom: 16,
   },
   button: {
-    backgroundColor: "#333",
+    backgroundColor: cores.tinta,
     paddingVertical: 15,
     paddingHorizontal: 40,
     borderRadius: 10,
@@ -225,12 +226,12 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: "#f9ca0a",
+    color: cores.fundo,
     fontSize: 18,
     fontWeight: "600",
   },
   linkText: {
-    color: "#333",
+    color: cores.tinta,
     marginTop: 10,
     fontSize: 16,
     textDecorationLine: "underline",

@@ -1,5 +1,4 @@
 import { alturaPdf, LARGURA_PDF } from "@/lib/exportar";
-import { File, Paths } from "expo-file-system";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { Platform } from "react-native";
@@ -43,25 +42,6 @@ export function abrirHtmlWeb(html: string): void {
     URL.revokeObjectURL(url);
     throw new Error("Permita pop-ups no navegador para ver o relatório.");
   }
-}
-
-export async function compartilharCsv(
-  nomeArquivo: string,
-  csv: string
-): Promise<void> {
-  if (Platform.OS === "web") {
-    baixarTextoWeb(nomeArquivo, csv, "text/csv;charset=utf-8");
-    return;
-  }
-  await garantirCompartilhamento();
-  const arquivo = new File(Paths.cache, nomeArquivo);
-  arquivo.create({ overwrite: true });
-  arquivo.write(csv);
-  await Sharing.shareAsync(arquivo.uri, {
-    mimeType: "text/csv",
-    dialogTitle: "Exportar histórico",
-    UTI: "public.comma-separated-values-text",
-  });
 }
 
 export async function compartilharPdfHtml(

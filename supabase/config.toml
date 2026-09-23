@@ -1,0 +1,10 @@
+# Ligado ao projeto ChickSafe.
+# A Function do ESP não usa JWT de usuário — ela autentica com X-Device-Key.
+
+project_id = "gjzagwbzmulhwlrqhmpl"
+
+[functions.ingest-leitura]
+verify_jwt = false
+
+[functions.enviar-push]
+verify_jwt = false

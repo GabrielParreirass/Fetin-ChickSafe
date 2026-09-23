@@ -1,10 +1,11 @@
+import { cores } from "@/constants/tema";
 import { router } from "expo-router";
 import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function WelcomeScreen() {
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#f9ca0a" barStyle="dark-content" />
+      <StatusBar backgroundColor={cores.fundo} barStyle="dark-content" />
       <Text style={styles.title}>Bem-vindo ao ChickSafe!</Text>
 
       <TouchableOpacity
@@ -27,7 +28,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9ca0a",
+    backgroundColor: cores.fundo,
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
@@ -35,31 +36,31 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 50,
     textAlign: "center",
   },
   button: {
-    backgroundColor: "#333",
+    backgroundColor: cores.tinta,
     paddingVertical: 15,
     paddingHorizontal: 40,
     borderRadius: 10,
     marginBottom: 20,
   },
   buttonText: {
-    color: "#f9ca0a",
+    color: cores.fundo,
     fontSize: 18,
     fontWeight: "600",
   },
   buttonSecondary: {
     borderWidth: 2,
-    borderColor: "#333",
+    borderColor: cores.tinta,
     paddingVertical: 15,
     paddingHorizontal: 40,
     borderRadius: 10,
   },
   buttonSecondaryText: {
-    color: "#333",
+    color: cores.tinta,
     fontSize: 18,
     fontWeight: "600",
   },

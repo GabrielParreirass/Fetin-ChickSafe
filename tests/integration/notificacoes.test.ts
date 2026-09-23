@@ -5,7 +5,12 @@ jest.mock("@/lib/supabase", () => ({
   },
 }));
 
-import { listarNotificacoes, marcarNotificacaoLida } from "@/lib/database";
+import {
+  listarNotificacoes,
+  marcarNotificacaoLida,
+  ocultarNotificacao,
+  ocultarNotificacoes,
+} from "@/lib/database";
 import {
   createMockQuery,
   resetSupabaseMocks,
@@ -48,6 +53,7 @@ describe("listarNotificacoes", () => {
     ]);
     expect(supabaseMocks().from).toHaveBeenCalledWith("notificacoes");
     expect(consulta.eq).toHaveBeenCalledWith("usuario_id", "user-1");
+    expect(consulta.eq).toHaveBeenCalledWith("oculta", false);
     expect(consulta.order).toHaveBeenCalledWith("criado_em", {
       ascending: false,
     });
@@ -84,5 +90,38 @@ describe("marcarNotificacaoLida", () => {
     );
 
     await expect(marcarNotificacaoLida("n-1")).rejects.toEqual(erro);
+  });
+});
+
+describe("ocultarNotificacao", () => {
+  beforeEach(() => {
+    resetSupabaseMocks();
+  });
+
+  it("marca uma notificação como oculta sem apagar", async () => {
+    const consulta = createMockQuery({ data: null, error: null });
+    supabaseMocks().from.mockReturnValue(consulta);
+
+    await expect(ocultarNotificacao("n-1")).resolves.toBeUndefined();
+    expect(consulta.update).toHaveBeenCalledWith({ oculta: true });
+    expect(consulta.delete).not.toHaveBeenCalled();
+    expect(consulta.eq).toHaveBeenCalledWith("id", "n-1");
+  });
+});
+
+describe("ocultarNotificacoes", () => {
+  beforeEach(() => {
+    resetSupabaseMocks();
+  });
+
+  it("oculta as notificações visíveis do usuário", async () => {
+    const consulta = createMockQuery({ data: null, error: null });
+    supabaseMocks().from.mockReturnValue(consulta);
+
+    await expect(ocultarNotificacoes("user-1")).resolves.toBeUndefined();
+    expect(consulta.update).toHaveBeenCalledWith({ oculta: true });
+    expect(consulta.delete).not.toHaveBeenCalled();
+    expect(consulta.eq).toHaveBeenCalledWith("usuario_id", "user-1");
+    expect(consulta.eq).toHaveBeenCalledWith("oculta", false);
   });
 });

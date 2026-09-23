@@ -51,6 +51,8 @@ jest.mock("@/lib/database", () => ({
   sairDoGalpao: jest.fn(),
   listarNotificacoes: jest.fn(),
   marcarNotificacaoLida: jest.fn(),
+  ocultarNotificacao: jest.fn(),
+  ocultarNotificacoes: jest.fn(),
   notificarSensorOffline: jest.fn(),
 }));
 

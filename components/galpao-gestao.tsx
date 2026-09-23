@@ -1,3 +1,4 @@
+import { cores } from "@/constants/tema";
 import {
   ehAcessoPendente,
   ehDono,
@@ -243,7 +244,7 @@ export function useGalpaoGestao(opcoes: {
               Acesso — {galpao?.nome ?? "galpão"}
             </Text>
             {carregandoAcesso ? (
-              <ActivityIndicator color="#333" />
+              <ActivityIndicator color={cores.tinta} />
             ) : acessos.length === 0 ? (
               <Text style={styles.emptyAcessoText}>
                 Ninguém com acesso neste galpão.
@@ -289,11 +290,12 @@ export function useGalpaoGestao(opcoes: {
                   acesso.papel !== "dono" &&
                   !ehAcessoPendente(acesso) ? (
                     <TouchableOpacity
+                      style={styles.removerButton}
                       onPress={() => void confirmarRemover(acesso.usuarioId)}
                       disabled={salvando}
                       accessibilityLabel={`Remover acesso de ${acesso.nome}`}
                     >
-                      <Text style={styles.removerText}>
+                      <Text style={styles.removerButtonText}>
                         {pendenteAcao === `remover:${acesso.usuarioId}`
                           ? "Confirmar"
                           : "Remover"}
@@ -323,8 +325,8 @@ export function useGalpaoGestao(opcoes: {
             {erro && modal === "acesso" ? (
               <Text style={styles.erro}>{erro}</Text>
             ) : null}
-            <TouchableOpacity onPress={fechar}>
-              <Text style={styles.cancelText}>Fechar</Text>
+            <TouchableOpacity style={styles.fecharButton} onPress={fechar}>
+              <Text style={styles.fecharButtonText}>Fechar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -344,7 +346,7 @@ export function useGalpaoGestao(opcoes: {
                     <TextInput
                       style={styles.input}
                       placeholder="Nome do galpão"
-                      placeholderTextColor="#555"
+                      placeholderTextColor={cores.tintaSuave}
                       value={nomeEdicao}
                       onChangeText={(valor) => {
                         setNomeEdicao(valor);
@@ -365,7 +367,7 @@ export function useGalpaoGestao(opcoes: {
                     <TextInput
                       style={styles.input}
                       placeholder="Ex.: 3"
-                      placeholderTextColor="#555"
+                      placeholderTextColor={cores.tintaSuave}
                       keyboardType="decimal-pad"
                       value={tensaoEdicao}
                       onChangeText={(valor) => {
@@ -382,7 +384,7 @@ export function useGalpaoGestao(opcoes: {
                     <TextInput
                       style={styles.input}
                       placeholder="Ex.: 50"
-                      placeholderTextColor="#555"
+                      placeholderTextColor={cores.tintaSuave}
                       keyboardType="decimal-pad"
                       value={correnteEdicao}
                       onChangeText={(valor) => {
@@ -410,7 +412,7 @@ export function useGalpaoGestao(opcoes: {
                     disabled={salvando}
                   >
                     {salvando ? (
-                      <ActivityIndicator color="#f9ca0a" />
+                      <ActivityIndicator color={cores.fundo} />
                     ) : (
                       <Text style={styles.primaryButtonText}>
                         Salvar alterações
@@ -430,8 +432,8 @@ export function useGalpaoGestao(opcoes: {
                   </TouchableOpacity>
                 </>
               ) : null}
-              <TouchableOpacity onPress={fechar}>
-                <Text style={styles.cancelText}>Fechar</Text>
+              <TouchableOpacity style={styles.fecharButton} onPress={fechar}>
+                <Text style={styles.fecharButtonText}>Fechar</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -451,7 +453,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: cores.branco,
     borderRadius: 20,
     padding: 20,
     gap: 12,
@@ -459,28 +461,35 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 4,
   },
   input: {
     height: 55,
-    backgroundColor: "#f1f1f1",
+    backgroundColor: cores.superficieSuave,
     borderRadius: 10,
     paddingHorizontal: 15,
     fontSize: 16,
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 8,
   },
-  cancelText: {
-    color: "#333",
-    textAlign: "center",
-    fontSize: 16,
-    textDecorationLine: "underline",
+  fecharButton: {
+    borderWidth: 1.5,
+    borderColor: cores.borda,
+    backgroundColor: cores.superficieSuave,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
     marginTop: 8,
+  },
+  fecharButtonText: {
+    color: cores.tinta,
+    fontSize: 16,
+    fontWeight: "600",
   },
   emptyAcessoText: {
     fontSize: 15,
-    color: "#555",
+    color: cores.tintaSuave,
     textAlign: "center",
     lineHeight: 22,
   },
@@ -491,7 +500,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: cores.divisor,
   },
   acessoInfo: {
     flex: 1,
@@ -503,56 +512,56 @@ const styles = StyleSheet.create({
   acessoNome: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
+    color: cores.tinta,
   },
   acessoEmail: {
     fontSize: 13,
-    color: "#777",
+    color: cores.tintaFraca,
     marginTop: 2,
   },
   campoLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#555",
+    color: cores.tintaSuave,
     marginTop: 8,
     marginBottom: 6,
   },
   campoValor: {
     fontSize: 16,
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 10,
   },
   campoAjuda: {
     fontSize: 12,
-    color: "#777",
+    color: cores.tintaFraca,
     marginBottom: 12,
   },
   erro: {
-    color: "#8B0000",
+    color: cores.erro,
     fontSize: 14,
     fontWeight: "600",
     textAlign: "center",
   },
   aviso: {
-    color: "#333",
+    color: cores.tinta,
     fontSize: 14,
     fontWeight: "600",
     textAlign: "center",
   },
   removerText: {
-    color: "#8B0000",
+    color: cores.erro,
     fontSize: 14,
     fontWeight: "600",
     textDecorationLine: "underline",
   },
   aprovarText: {
-    color: "#2E7D32",
+    color: cores.sucesso,
     fontSize: 14,
     fontWeight: "600",
     textDecorationLine: "underline",
   },
   sairText: {
-    color: "#8B0000",
+    color: cores.erro,
     textAlign: "center",
     fontSize: 15,
     fontWeight: "600",
@@ -560,7 +569,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   primaryButton: {
-    backgroundColor: "#333",
+    backgroundColor: cores.tinta,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: "center",
@@ -568,21 +577,33 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   primaryButtonText: {
-    color: "#f9ca0a",
+    color: cores.fundo,
     fontSize: 16,
     fontWeight: "600",
   },
   dangerButton: {
     borderWidth: 2,
-    borderColor: "#8B0000",
+    borderColor: cores.erro,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: "center",
     marginBottom: 8,
   },
   dangerButtonText: {
-    color: "#8B0000",
+    color: cores.erro,
     fontSize: 16,
+    fontWeight: "600",
+  },
+  removerButton: {
+    borderWidth: 1.5,
+    borderColor: cores.erro,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  removerButtonText: {
+    color: cores.erro,
+    fontSize: 13,
     fontWeight: "600",
   },
 });

@@ -1,12 +1,9 @@
+import { cores } from "@/constants/tema";
 import { useGalpaoGestao } from "@/components/galpao-gestao";
 import { SinoNotificacoes } from "@/components/notificacoes";
 import { useAuth } from "@/contexts/auth";
+import { useGalpao } from "@/hooks/use-galpao";
 import { ehDono } from "@/lib/acesso";
-import {
-  buscarUltimaLeitura,
-  listarGalpoesDoUsuario,
-  notificarSensorOffline,
-} from "@/lib/database";
 import { acessoAprovado } from "@/lib/galpao";
 import {
   correnteOk,
@@ -20,14 +17,12 @@ import {
   tensaoOk,
   corRotuloStatus,
 } from "@/lib/status";
-import { supabase } from "@/lib/supabase";
 import type { Galpao, Leitura } from "@/lib/types";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Href, router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   ScrollView,
@@ -96,14 +91,16 @@ function cardsDaLeitura(
 export default function GalpaoDetalheScreen() {
   const { id, acesso } = useLocalSearchParams<{ id: string; acesso?: string }>();
   const { usuario, user } = useAuth();
-  const [galpoes, setGalpoes] = useState<Galpao[]>([]);
-  const [ambienteSelecionado, setAmbienteSelecionado] = useState<Galpao | null>(
-    null
-  );
-  const [leitura, setLeitura] = useState<Leitura | null>(null);
-  const [carregando, setCarregando] = useState(true);
+  const {
+    galpoes,
+    ambienteSelecionado,
+    leitura,
+    carregando,
+    agora,
+    recarregarGalpoes,
+    selecionarAmbiente,
+  } = useGalpao(id, user?.id);
   const [modalVisible, setModalVisible] = useState(false);
-  const [agora, setAgora] = useState(() => new Date());
 
   const primeiroNome = (usuario?.nome ?? "produtor").split(" ")[0];
   const cards = cardsDaLeitura(
@@ -118,45 +115,6 @@ export default function GalpaoDetalheScreen() {
     agora
   );
   const offline = geral.rotulo === "Offline";
-
-  const carregarLeitura = useCallback(async (galpao: Galpao) => {
-    const atual = await buscarUltimaLeitura(galpao.id);
-    setLeitura(atual);
-    const instante = new Date();
-    setAgora(instante);
-    if (
-      statusGalpao(
-        atual,
-        galpao.limiarTensao,
-        galpao.limiarCorrente,
-        instante
-      ).rotulo === "Offline"
-    ) {
-      void notificarSensorOffline(galpao.id).catch(() => undefined);
-    }
-  }, []);
-
-  const recarregarGalpoes = useCallback(
-    async (atualizado?: Galpao) => {
-      if (!user) {
-        return;
-      }
-      const lista = await listarGalpoesDoUsuario(user.id);
-      setGalpoes(lista);
-      if (atualizado) {
-        setAmbienteSelecionado(atualizado);
-        return;
-      }
-      setAmbienteSelecionado((atual) => {
-        const visiveis = lista.filter(acessoAprovado);
-        if (!atual) {
-          return visiveis[0] ?? lista[0] ?? null;
-        }
-        return lista.find((item) => item.id === atual.id) ?? visiveis[0] ?? null;
-      });
-    },
-    [user]
-  );
 
   const { abrirAcessos, abrirConfig, modais } = useGalpaoGestao({
     usuarioId: usuario?.id ?? user?.id,
@@ -182,91 +140,9 @@ export default function GalpaoDetalheScreen() {
     void abrirAcessos(ambienteSelecionado);
   }, [acesso, carregando, ambienteSelecionado, id, abrirAcessos]);
 
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-
-    let ativo = true;
-
-    (async () => {
-      try {
-        setCarregando(true);
-        const lista = await listarGalpoesDoUsuario(user.id);
-        if (!ativo) {
-          return;
-        }
-        setGalpoes(lista);
-        const atual =
-          lista.find((item) => item.id === id) ??
-          lista.find(acessoAprovado) ??
-          null;
-        setAmbienteSelecionado(atual);
-        if (atual && acessoAprovado(atual)) {
-          await carregarLeitura(atual);
-        }
-      } catch (error) {
-        const mensagem =
-          error instanceof Error ? error.message : "Falha ao carregar o galpão.";
-        Alert.alert("Galpão", mensagem);
-      } finally {
-        if (ativo) {
-          setCarregando(false);
-        }
-      }
-    })();
-
-    return () => {
-      ativo = false;
-    };
-  }, [user, id, carregarLeitura]);
-
-  useEffect(() => {
-    const galpaoId = ambienteSelecionado?.id;
-    if (!galpaoId || !acessoAprovado(ambienteSelecionado)) {
-      return;
-    }
-
-    const channel = supabase.channel(`leituras-${galpaoId}-${Date.now()}`);
-    channel.on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "leituras",
-        filter: `galpao_id=eq.${galpaoId}`,
-      },
-      (payload) => {
-        setLeitura(payload.new as Leitura);
-        setAgora(new Date());
-      }
-    );
-    channel.subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [ambienteSelecionado]);
-
-  useEffect(() => {
-    const id = setInterval(() => setAgora(new Date()), 30_000);
-    return () => clearInterval(id);
-  }, []);
-
-  const selecionarAmbiente = async (ambiente: Galpao) => {
-    setAmbienteSelecionado(ambiente);
+  const escolherAmbiente = async (ambiente: Galpao) => {
     setModalVisible(false);
-    if (!acessoAprovado(ambiente)) {
-      setLeitura(null);
-      return;
-    }
-    try {
-      await carregarLeitura(ambiente);
-    } catch (error) {
-      const mensagem =
-        error instanceof Error ? error.message : "Falha ao atualizar leituras.";
-      Alert.alert("Galpão", mensagem);
-    }
+    await selecionarAmbiente(ambiente);
   };
 
   const abrirHistorico = () => {
@@ -294,12 +170,12 @@ export default function GalpaoDetalheScreen() {
     ambienteSelecionado && ehDono(ambienteSelecionado.papel)
   );
   const corIndicador = aguardando
-    ? "#F9A825"
+    ? cores.pendente
     : corRotuloStatus(geral.rotulo);
 
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#f9ca0a" barStyle="dark-content" />
+      <StatusBar backgroundColor={cores.fundo} barStyle="dark-content" />
 
       <View style={styles.header}>
         <TouchableOpacity
@@ -307,7 +183,7 @@ export default function GalpaoDetalheScreen() {
           style={styles.backButton}
           accessibilityLabel="Voltar para a home"
         >
-          <MaterialIcons name="arrow-back" size={26} color="#333" />
+          <MaterialIcons name="arrow-back" size={26} color={cores.tinta} />
         </TouchableOpacity>
         <View style={styles.userGreeting}>
           <Text style={styles.userName} numberOfLines={1}>
@@ -325,7 +201,7 @@ export default function GalpaoDetalheScreen() {
 
       <View style={styles.body}>
         {carregando ? (
-          <ActivityIndicator color="#333" style={styles.loader} />
+          <ActivityIndicator color={cores.tinta} style={styles.loader} />
         ) : (
           <>
             <ScrollView
@@ -352,7 +228,7 @@ export default function GalpaoDetalheScreen() {
                   disabled={aguardando}
                   accessibilityLabel="Abrir histórico"
                 >
-                  <MaterialIcons name="history" size={22} color="#f9ca0a" />
+                  <MaterialIcons name="history" size={22} color={cores.fundo} />
                   <Text style={styles.acaoButtonText}>Histórico</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -365,7 +241,7 @@ export default function GalpaoDetalheScreen() {
                   disabled={!ambienteSelecionado}
                   accessibilityLabel={`Ver acesso de ${ambienteSelecionado?.nome ?? "galpão"}`}
                 >
-                  <MaterialIcons name="group" size={22} color="#f9ca0a" />
+                  <MaterialIcons name="group" size={22} color={cores.fundo} />
                   <Text style={styles.acaoButtonText}>Acesso</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -378,7 +254,7 @@ export default function GalpaoDetalheScreen() {
                   disabled={!ambienteSelecionado || aguardando}
                   accessibilityLabel={`Configurar ${ambienteSelecionado?.nome ?? "galpão"}`}
                 >
-                  <MaterialIcons name="settings" size={22} color="#f9ca0a" />
+                  <MaterialIcons name="settings" size={22} color={cores.fundo} />
                   <Text style={styles.acaoButtonText}>Ajustes</Text>
                 </TouchableOpacity>
               </View>
@@ -389,7 +265,7 @@ export default function GalpaoDetalheScreen() {
                   onPress={abrirDashboard}
                   accessibilityLabel="Abrir dashboard"
                 >
-                  <MaterialIcons name="insights" size={22} color="#f9ca0a" />
+                  <MaterialIcons name="insights" size={22} color={cores.fundo} />
                   <Text style={styles.acaoButtonText}>Dashboard</Text>
                 </TouchableOpacity>
               ) : null}
@@ -416,10 +292,10 @@ export default function GalpaoDetalheScreen() {
                         styles.card,
                         {
                           backgroundColor: offline
-                            ? "#FF9800"
+                            ? cores.offline
                             : card.ok
-                              ? "#4CAF50"
-                              : "#F44336",
+                              ? cores.normal
+                              : cores.alerta,
                         },
                       ]}
                     >
@@ -443,7 +319,7 @@ export default function GalpaoDetalheScreen() {
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => (
                       <TouchableOpacity
-                        onPress={() => selecionarAmbiente(item)}
+                        onPress={() => void escolherAmbiente(item)}
                         style={styles.modalItem}
                       >
                         <Text style={styles.modalItemText}>{item.nome}</Text>
@@ -464,10 +340,10 @@ export default function GalpaoDetalheScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9ca0a",
+    backgroundColor: cores.fundo,
   },
   header: {
-    backgroundColor: "#f9ca0a",
+    backgroundColor: cores.fundo,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -491,7 +367,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
+    color: cores.tinta,
   },
   statusIndicator: {
     width: 20,
@@ -500,7 +376,7 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: cores.branco,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     overflow: "hidden",
@@ -517,7 +393,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   dropdown: {
-    backgroundColor: "#f1f1f1",
+    backgroundColor: cores.superficieSuave,
     borderRadius: 10,
     padding: 15,
     marginBottom: 16,
@@ -529,7 +405,7 @@ const styles = StyleSheet.create({
   },
   dropdownLabel: {
     fontSize: 18,
-    color: "#333",
+    color: cores.tinta,
   },
   acoesRow: {
     flexDirection: "row",
@@ -538,7 +414,7 @@ const styles = StyleSheet.create({
   },
   acaoButton: {
     flex: 1,
-    backgroundColor: "#333",
+    backgroundColor: cores.tinta,
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 8,
@@ -548,12 +424,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   acaoButtonText: {
-    color: "#f9ca0a",
+    color: cores.fundo,
     fontSize: 13,
     fontWeight: "600",
   },
   dashboardButton: {
-    backgroundColor: "#333",
+    backgroundColor: cores.tinta,
     borderRadius: 10,
     paddingVertical: 12,
     marginBottom: 16,
@@ -564,13 +440,13 @@ const styles = StyleSheet.create({
   },
   pendenteText: {
     fontSize: 16,
-    color: "#555",
+    color: cores.tintaSuave,
     textAlign: "center",
     lineHeight: 24,
     marginTop: 12,
   },
   offlineBanner: {
-    backgroundColor: "#FFF3E0",
+    backgroundColor: cores.avisoFundo,
     borderRadius: 12,
     padding: 14,
     marginBottom: 14,
@@ -578,13 +454,13 @@ const styles = StyleSheet.create({
   offlineTitulo: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#E65100",
+    color: cores.avisoTexto,
     marginBottom: 4,
     textAlign: "center",
   },
   offlineTexto: {
     fontSize: 14,
-    color: "#E65100",
+    color: cores.avisoTexto,
     textAlign: "center",
     lineHeight: 20,
   },
@@ -598,12 +474,12 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#fff",
+    color: cores.branco,
     marginBottom: 6,
   },
   cardStatus: {
     fontSize: 18,
-    color: "#fff",
+    color: cores.branco,
   },
   modalContainer: {
     flex: 1,
@@ -612,7 +488,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: cores.branco,
     borderRadius: 20,
     padding: 20,
   },

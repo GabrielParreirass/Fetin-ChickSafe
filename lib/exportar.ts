@@ -12,28 +12,15 @@ import {
   rotuloEnergia,
   statusGeralLeitura,
 } from "@/lib/status";
+import { cores } from "@/constants/tema";
 import type { Leitura } from "@/lib/types";
-
-function escaparCsv(valor: string): string {
-  const texto = valor.replace(/"/g, '""');
-  if (/[;"\n\r]/.test(texto)) {
-    return `"${texto}"`;
-  }
-  return texto;
-}
+import { formatarDataHora } from "@/lib/calendario";
 
 function formatarDataExportacao(data: Date): string {
   if (Number.isNaN(data.getTime())) {
     return "";
   }
-  return data.toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  return formatarDataHora(data);
 }
 
 function escaparHtml(valor: string): string {
@@ -51,10 +38,6 @@ export function dataArquivo(agora: Date = new Date()): string {
   return `${ano}-${mes}-${dia}`;
 }
 
-export function nomeArquivoCsvHistorico(agora: Date = new Date()): string {
-  return `historico-chicksafe-${dataArquivo(agora)}.csv`;
-}
-
 export function nomeArquivoHtmlHistorico(agora: Date = new Date()): string {
   return `historico-chicksafe-${dataArquivo(agora)}.html`;
 }
@@ -70,26 +53,6 @@ export function nomeArquivoPdfDashboard(
     .replace(/^-|-$/g, "")
     .slice(0, 32);
   return `dashboard-${slug || "galpao"}-${dataArquivo(agora)}.pdf`;
-}
-
-export function csvHistorico(mudancas: MudancaLeitura[]): string {
-  const linhas = [
-    ["Data/hora", "Galpão", "Campo", "Anterior", "Novo"]
-      .map(escaparCsv)
-      .join(";"),
-    ...mudancas.map((item) =>
-      [
-        formatarDataExportacao(item.dataHora),
-        item.galpaoNome,
-        item.campo,
-        item.estadoAnterior,
-        item.novoEstado,
-      ]
-        .map(escaparCsv)
-        .join(";")
-    ),
-  ];
-  return `\uFEFF${linhas.join("\r\n")}`;
 }
 
 const LARGURA_PDF = 612;
@@ -130,8 +93,8 @@ export function svgLinha(
   const linhaLimiar =
     limiar == null
       ? ""
-      : `<line x1="${padX}" y1="${yDe(limiar).toFixed(1)}" x2="${largura - 10}" y2="${yDe(limiar).toFixed(1)}" stroke="#F44336" stroke-dasharray="4 3" stroke-width="1.5" />`;
-  return `<svg viewBox="0 0 ${largura} ${altura}" width="100%" height="${altura}">${linhaLimiar}<path d="${d}" fill="none" stroke="${opcoes.cor ?? "#333"}" stroke-width="2" /></svg>`;
+      : `<line x1="${padX}" y1="${yDe(limiar).toFixed(1)}" x2="${largura - 10}" y2="${yDe(limiar).toFixed(1)}" stroke="${cores.alerta}" stroke-dasharray="4 3" stroke-width="1.5" />`;
+  return `<svg viewBox="0 0 ${largura} ${altura}" width="100%" height="${altura}">${linhaLimiar}<path d="${d}" fill="none" stroke="${opcoes.cor ?? cores.tinta}" stroke-width="2" /></svg>`;
 }
 
 function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
@@ -152,7 +115,7 @@ export function svgDonut(
   const ri = 42;
   const total = visiveis.reduce((soma, fatia) => soma + fatia.value, 0);
   if (visiveis.length === 1) {
-    return `<svg viewBox="0 0 180 180" width="180" height="180"><circle cx="${cx}" cy="${cy}" r="${r}" fill="${visiveis[0].color}" /><circle cx="${cx}" cy="${cy}" r="${ri}" fill="#fff" /></svg>`;
+    return `<svg viewBox="0 0 180 180" width="180" height="180"><circle cx="${cx}" cy="${cy}" r="${r}" fill="${visiveis[0].color}" /><circle cx="${cx}" cy="${cy}" r="${ri}" fill="${cores.branco}" /></svg>`;
   }
   let angulo = -90;
   const paths = visiveis.map((fatia) => {
@@ -171,17 +134,17 @@ export function svgDonut(
 const ESTILO_PDF = `
   @page { margin: 18px; size: auto; }
   html, body { height: auto; overflow: visible; }
-  body { font-family: Helvetica, Arial, sans-serif; color: #333; padding: 16px; }
+  body { font-family: Helvetica, Arial, sans-serif; color: ${cores.tinta}; padding: 16px; }
   h1 { font-size: 22px; margin: 0 0 4px; }
   h2 { font-size: 16px; margin: 22px 0 8px; page-break-after: avoid; }
   p, td, th { font-size: 12px; }
-  .meta { color: #777; margin-bottom: 12px; }
+  .meta { color: ${cores.tintaFraca}; margin-bottom: 12px; }
   table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
   tr { page-break-inside: avoid; }
-  th, td { border: 1px solid #ddd; padding: 7px; text-align: left; }
-  th { background: #f1f1f1; }
+  th, td { border: 1px solid ${cores.borda}; padding: 7px; text-align: left; }
+  th { background: ${cores.superficieSuave}; }
   .cards { width: 100%; margin-bottom: 8px; }
-  .cards td { width: 50%; background: #f9f9f9; }
+  .cards td { width: 50%; background: ${cores.superficieCard}; }
   .grafico { page-break-inside: avoid; margin: 8px 0 4px; }
   .pizza { text-align: center; page-break-inside: avoid; }
 `;
@@ -240,11 +203,11 @@ export function htmlDashboard(input: {
   const serie = leiturasCronologicas(input.leituras);
   const graficoTensao = svgLinha(
     pontosTensao(input.leituras).map((ponto) => ponto.value),
-    { limiar: input.limiarTensao, cor: "#333" }
+    { limiar: input.limiarTensao, cor: cores.tinta }
   );
   const graficoCorrente = svgLinha(
     pontosCorrente(input.leituras).map((ponto) => ponto.value),
-    { limiar: input.limiarCorrente, cor: "#333" }
+    { limiar: input.limiarCorrente, cor: cores.tinta }
   );
   const pizza = svgDonut(fatiasEnergia(input.resumo));
   const linhas = serie

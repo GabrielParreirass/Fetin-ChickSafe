@@ -1,25 +1,16 @@
+import { cores } from "@/constants/tema";
 import { useAuth } from "@/contexts/auth";
 import { useSimulador } from "@/contexts/simulador";
 import { useGalpaoGestao } from "@/components/galpao-gestao";
 import { SinoNotificacoes } from "@/components/notificacoes";
-import {
-  buscarLeiturasAprovadas,
-  criarGalpao,
-  entrarGalpaoPorCodigo,
-  listarGalpoesDoUsuario,
-  notificarSensorOffline,
-} from "@/lib/database";
+import { useHomeGalpoes } from "@/hooks/use-home-galpoes";
+import { criarGalpao, entrarGalpaoPorCodigo } from "@/lib/database";
 import { acessoAprovado } from "@/lib/galpao";
-import {
-  corRotuloStatus,
-  resumoLeitura,
-  statusGalpao,
-} from "@/lib/status";
-import { supabase } from "@/lib/supabase";
-import type { Galpao, Leitura } from "@/lib/types";
+import { corRotuloStatus, resumoLeitura, statusGalpao } from "@/lib/status";
+import type { Galpao } from "@/lib/types";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Href, router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -35,66 +26,20 @@ import {
 
 export default function HomeLogadaScreen() {
   const { usuario, user, signOut } = useAuth();
-  const { ativo, ultima, iniciar, parar } = useSimulador();
-  const [galpoes, setGalpoes] = useState<Galpao[]>([]);
-  const [leituras, setLeituras] = useState<Record<string, Leitura | null>>({});
-  const [carregando, setCarregando] = useState(true);
-  const [modal, setModal] = useState<"entrar" | "criar" | null>(null);
+  const { ativo, ultima, iniciar, parar, testarAlerta } = useSimulador();
+  const { galpoes, leituras, carregando, agora, carregar } = useHomeGalpoes(
+    user?.id
+  );
+  const [modal, setModal] = useState<"entrar" | "criar" | "criado" | null>(null);
   const [codigo, setCodigo] = useState("");
   const [nomeGalpao, setNomeGalpao] = useState("");
+  const [nomeDispositivo, setNomeDispositivo] = useState("");
+  const [codigoGerado, setCodigoGerado] = useState("");
+  const [dispositivoGerado, setDispositivoGerado] = useState("");
+  const [chaveGerada, setChaveGerada] = useState("");
   const [salvando, setSalvando] = useState(false);
-  const [agora, setAgora] = useState(() => new Date());
-  const galpoesRef = useRef<Galpao[]>([]);
 
   const primeiroNome = (usuario?.nome ?? "produtor").split(" ")[0];
-
-  useEffect(() => {
-    galpoesRef.current = galpoes;
-  }, [galpoes]);
-
-  useEffect(() => {
-    const id = setInterval(() => setAgora(new Date()), 30_000);
-    return () => clearInterval(id);
-  }, []);
-
-  const carregar = useCallback(async () => {
-    if (!user) {
-      return;
-    }
-
-    try {
-      setCarregando(true);
-      const lista = await listarGalpoesDoUsuario(user.id);
-      const atuais = await buscarLeiturasAprovadas(lista);
-      setGalpoes(lista);
-      galpoesRef.current = lista;
-      setLeituras(atuais);
-      setAgora(new Date());
-      const instante = new Date();
-      await Promise.all(
-        lista
-          .filter(acessoAprovado)
-          .filter((item) => {
-            const leitura = atuais[item.id] ?? null;
-            return statusGalpao(
-              leitura,
-              item.limiarTensao,
-              item.limiarCorrente,
-              instante
-            ).rotulo === "Offline";
-          })
-          .map((item) =>
-            notificarSensorOffline(item.id).catch(() => undefined)
-          )
-      );
-    } catch (error) {
-      const mensagem =
-        error instanceof Error ? error.message : "Falha ao carregar galpões.";
-      Alert.alert("Galpões", mensagem);
-    } finally {
-      setCarregando(false);
-    }
-  }, [user]);
 
   const { abrirAcessos, abrirConfig, modais: modaisGestao } = useGalpaoGestao({
     usuarioId: usuario?.id ?? user?.id,
@@ -106,38 +51,6 @@ export default function HomeLogadaScreen() {
       carregar();
     }, [carregar])
   );
-
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-
-    const channel = supabase.channel(`home-leituras-${user.id}`);
-    channel.on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "leituras",
-      },
-      (payload) => {
-        const nova = payload.new as Leitura;
-        const galpao = galpoesRef.current.find(
-          (item) => item.id === nova.galpao_id && acessoAprovado(item)
-        );
-        if (!galpao) {
-          return;
-        }
-        setLeituras((atual) => ({ ...atual, [nova.galpao_id]: nova }));
-        setAgora(new Date());
-      }
-    );
-    channel.subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [user]);
 
   const abrirGalpao = (galpao: Galpao) => {
     if (!acessoAprovado(galpao)) {
@@ -154,6 +67,10 @@ export default function HomeLogadaScreen() {
     setModal(null);
     setCodigo("");
     setNomeGalpao("");
+    setNomeDispositivo("");
+    setCodigoGerado("");
+    setDispositivoGerado("");
+    setChaveGerada("");
   };
 
   const confirmarAcao = async () => {
@@ -174,11 +91,17 @@ export default function HomeLogadaScreen() {
           Alert.alert("Galpão", "Informe o nome do galpão.");
           return;
         }
-        const criado = await criarGalpao(nomeGalpao);
-        Alert.alert(
-          "Galpão criado",
-          `Código para convidar outros usuários: ${criado.codigo}`
-        );
+        if (!nomeDispositivo.trim()) {
+          Alert.alert("Galpão", "Informe o nome do dispositivo.");
+          return;
+        }
+        const criado = await criarGalpao(nomeGalpao, nomeDispositivo);
+        setCodigoGerado(criado.galpao.codigo ?? "");
+        setDispositivoGerado(criado.dispositivoNome);
+        setChaveGerada(criado.chave);
+        setModal("criado");
+        await carregar();
+        return;
       }
       fecharModal();
       await carregar();
@@ -186,7 +109,7 @@ export default function HomeLogadaScreen() {
       const mensagem =
         error instanceof Error
           ? error.message
-          : "Não foi possível concluir. Rode supabase/extras.sql no SQL Editor.";
+          : "Não foi possível concluir.";
       Alert.alert("Galpão", mensagem);
     } finally {
       setSalvando(false);
@@ -205,7 +128,7 @@ export default function HomeLogadaScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#f9ca0a" barStyle="dark-content" />
+      <StatusBar backgroundColor={cores.fundo} barStyle="dark-content" />
 
       <View style={styles.header}>
         <View style={styles.userGreeting}>
@@ -220,21 +143,21 @@ export default function HomeLogadaScreen() {
             style={styles.headerButton}
             accessibilityLabel="Abrir perfil"
           >
-            <MaterialIcons name="person" size={26} color="#333" />
+            <MaterialIcons name="person" size={26} color={cores.tinta} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push("/(private)/historico/page" as Href)}
             style={styles.headerButton}
             accessibilityLabel="Abrir histórico"
           >
-            <MaterialIcons name="history" size={26} color="#333" />
+            <MaterialIcons name="history" size={26} color={cores.tinta} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handleSair}
             style={styles.headerButton}
             accessibilityLabel="Sair"
           >
-            <MaterialIcons name="logout" size={24} color="#333" />
+            <MaterialIcons name="logout" size={24} color={cores.tinta} />
           </TouchableOpacity>
         </View>
       </View>
@@ -243,7 +166,7 @@ export default function HomeLogadaScreen() {
         <Text style={styles.sectionTitle}>Galpões disponíveis</Text>
 
         {carregando ? (
-          <ActivityIndicator color="#333" style={styles.loader} />
+          <ActivityIndicator color={cores.tinta} style={styles.loader} />
         ) : (
           <FlatList
             data={galpoes}
@@ -272,7 +195,7 @@ export default function HomeLogadaScreen() {
                 ? "Aguardando aprovação"
                 : geral?.rotulo ?? "Sem dados";
               const corStatus = pendente
-                ? "#F9A825"
+                ? cores.pendente
                 : corRotuloStatus(geral?.rotulo ?? "Sem dados");
 
               return (
@@ -282,7 +205,7 @@ export default function HomeLogadaScreen() {
                   onPress={() => abrirGalpao(item)}
                   accessibilityLabel={`${item.nome}, ${rotuloStatus}`}
                 >
-                  <MaterialIcons name="home" size={28} color="#333" />
+                  <MaterialIcons name="home" size={28} color={cores.tinta} />
                   <Text style={styles.galpaoNome}>{item.nome}</Text>
                   {item.codigo ? (
                     <Text style={styles.galpaoCodigo}>{item.codigo}</Text>
@@ -304,7 +227,7 @@ export default function HomeLogadaScreen() {
                     onPress={() => abrirConfig(item)}
                     accessibilityLabel={`Configurar ${item.nome}`}
                   >
-                    <MaterialIcons name="settings" size={20} color="#333" />
+                    <MaterialIcons name="settings" size={20} color={cores.tinta} />
                   </TouchableOpacity>
                 ) : null}
                 <TouchableOpacity
@@ -312,7 +235,7 @@ export default function HomeLogadaScreen() {
                   onPress={() => void abrirAcessos(item)}
                   accessibilityLabel={`Ver acesso de ${item.nome}`}
                 >
-                  <MaterialIcons name="group" size={20} color="#333" />
+                  <MaterialIcons name="group" size={20} color={cores.tinta} />
                 </TouchableOpacity>
               </View>
               );
@@ -342,6 +265,12 @@ export default function HomeLogadaScreen() {
           ) : null}
           <TouchableOpacity
             style={[styles.secondaryButton, styles.footerButton]}
+            onPress={() => void testarAlerta()}
+          >
+            <Text style={styles.secondaryButtonText}>Testar alerta no galpão</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.secondaryButton, styles.footerButton]}
             onPress={() => setModal("entrar")}
           >
             <Text style={styles.secondaryButtonText}>Entrar com código</Text>
@@ -358,37 +287,79 @@ export default function HomeLogadaScreen() {
       {modaisGestao}
 
       <Modal
-        visible={modal === "entrar" || modal === "criar"}
+        visible={modal === "entrar" || modal === "criar" || modal === "criado"}
         transparent
         animationType="fade"
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {modal === "criar" ? "Novo galpão" : "Entrar em um galpão"}
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder={modal === "criar" ? "Nome do galpão" : "Código"}
-              placeholderTextColor="#555"
-              autoCapitalize={modal === "criar" ? "sentences" : "characters"}
-              value={modal === "criar" ? nomeGalpao : codigo}
-              onChangeText={modal === "criar" ? setNomeGalpao : setCodigo}
-            />
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={confirmarAcao}
-              disabled={salvando}
-            >
-              {salvando ? (
-                <ActivityIndicator color="#f9ca0a" />
-              ) : (
-                <Text style={styles.primaryButtonText}>Confirmar</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={fecharModal}>
-              <Text style={styles.cancelText}>Cancelar</Text>
-            </TouchableOpacity>
+            {modal === "criado" ? (
+              <>
+                <Text style={styles.modalTitle}>Galpão criado</Text>
+                <Text style={styles.campoLabel}>Código para convidar</Text>
+                <Text style={styles.campoValor} selectable>
+                  {codigoGerado}
+                </Text>
+                <Text style={styles.campoLabel}>X-Device-Key</Text>
+                <Text style={styles.chaveDispositivo} selectable>
+                  {chaveGerada || dispositivoGerado}
+                </Text>
+                <Text style={styles.campoAjuda}>
+                  No ESP, o header X-Device-Key deve ser exatamente este nome.
+                </Text>
+                <TouchableOpacity
+                  style={styles.primaryButton}
+                  onPress={fecharModal}
+                >
+                  <Text style={styles.primaryButtonText}>Concluir</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>
+                  {modal === "criar" ? "Novo galpão" : "Entrar em um galpão"}
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={modal === "criar" ? "Nome do galpão" : "Código"}
+                  placeholderTextColor={cores.tintaSuave}
+                  autoCapitalize={modal === "criar" ? "sentences" : "characters"}
+                  value={modal === "criar" ? nomeGalpao : codigo}
+                  onChangeText={modal === "criar" ? setNomeGalpao : setCodigo}
+                />
+                {modal === "criar" ? (
+                  <>
+                    <Text style={styles.campoLabel}>Dispositivo ESP</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Nome do dispositivo"
+                      placeholderTextColor={cores.tintaSuave}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      value={nomeDispositivo}
+                      onChangeText={setNomeDispositivo}
+                    />
+                    <Text style={styles.campoAjuda}>
+                      Ex.: ESP-2. Esse nome é a chave que o ESP envia.
+                    </Text>
+                  </>
+                ) : null}
+                <TouchableOpacity
+                  style={styles.primaryButton}
+                  onPress={confirmarAcao}
+                  disabled={salvando}
+                >
+                  {salvando ? (
+                    <ActivityIndicator color={cores.fundo} />
+                  ) : (
+                    <Text style={styles.primaryButtonText}>Confirmar</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity onPress={fecharModal}>
+                  <Text style={styles.cancelText}>Cancelar</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -399,10 +370,10 @@ export default function HomeLogadaScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9ca0a",
+    backgroundColor: cores.fundo,
   },
   header: {
-    backgroundColor: "#f9ca0a",
+    backgroundColor: cores.fundo,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -421,7 +392,7 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
+    color: cores.tinta,
     flexShrink: 1,
   },
   headerActions: {
@@ -434,7 +405,7 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: cores.branco,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     padding: 20,
@@ -442,7 +413,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 16,
   },
   loader: {
@@ -457,7 +428,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   galpaoCard: {
-    backgroundColor: "#f1f1f1",
+    backgroundColor: cores.superficieSuave,
     borderRadius: 15,
     width: "47%",
     minHeight: 168,
@@ -485,13 +456,13 @@ const styles = StyleSheet.create({
   galpaoNome: {
     fontSize: 13,
     fontWeight: "bold",
-    color: "#333",
+    color: cores.tinta,
     marginTop: 8,
     textAlign: "center",
   },
   galpaoCodigo: {
     fontSize: 12,
-    color: "#777",
+    color: cores.tintaFraca,
     marginTop: 4,
   },
   statusBadge: {
@@ -501,20 +472,20 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   statusBadgeText: {
-    color: "#fff",
+    color: cores.branco,
     fontSize: 11,
     fontWeight: "700",
     textAlign: "center",
   },
   galpaoLeitura: {
     fontSize: 11,
-    color: "#555",
+    color: cores.tintaSuave,
     marginTop: 6,
     textAlign: "center",
   },
   emptyText: {
     fontSize: 16,
-    color: "#555",
+    color: cores.tintaSuave,
     textAlign: "center",
     marginTop: 24,
     lineHeight: 24,
@@ -528,30 +499,30 @@ const styles = StyleSheet.create({
   },
   simuladorStatus: {
     fontSize: 13,
-    color: "#555",
+    color: cores.tintaSuave,
     textAlign: "center",
     marginBottom: 16,
   },
   primaryButton: {
-    backgroundColor: "#333",
+    backgroundColor: cores.tinta,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: "center",
   },
   primaryButtonText: {
-    color: "#f9ca0a",
+    color: cores.fundo,
     fontSize: 16,
     fontWeight: "600",
   },
   secondaryButton: {
     borderWidth: 2,
-    borderColor: "#333",
+    borderColor: cores.tinta,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: "center",
   },
   secondaryButtonText: {
-    color: "#333",
+    color: cores.tinta,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -562,7 +533,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: cores.branco,
     borderRadius: 20,
     padding: 20,
     gap: 12,
@@ -570,19 +541,19 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 4,
   },
   input: {
     height: 55,
-    backgroundColor: "#f1f1f1",
+    backgroundColor: cores.superficieSuave,
     borderRadius: 10,
     paddingHorizontal: 15,
     fontSize: 16,
-    color: "#333",
+    color: cores.tinta,
   },
   cancelText: {
-    color: "#333",
+    color: cores.tinta,
     textAlign: "center",
     fontSize: 16,
     textDecorationLine: "underline",
@@ -590,7 +561,7 @@ const styles = StyleSheet.create({
   },
   emptyAcessoText: {
     fontSize: 15,
-    color: "#555",
+    color: cores.tintaSuave,
     textAlign: "center",
     lineHeight: 22,
   },
@@ -601,7 +572,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: cores.divisor,
   },
   acessoInfo: {
     flex: 1,
@@ -609,61 +580,67 @@ const styles = StyleSheet.create({
   acessoNome: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
+    color: cores.tinta,
   },
   acessoEmail: {
     fontSize: 13,
-    color: "#777",
+    color: cores.tintaFraca,
     marginTop: 2,
   },
   acessoPapel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#333",
+    color: cores.tinta,
   },
   campoLabel: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#555",
+    color: cores.tintaSuave,
     marginTop: 4,
   },
   campoValor: {
     fontSize: 16,
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 8,
   },
   campoAjuda: {
     fontSize: 12,
-    color: "#777",
+    color: cores.tintaFraca,
+    marginBottom: 8,
+  },
+  chaveDispositivo: {
+    fontSize: 14,
+    color: cores.tinta,
+    fontWeight: "600",
     marginBottom: 8,
   },
   erroAcesso: {
-    color: "#8B0000",
+    color: cores.erro,
     fontSize: 14,
     fontWeight: "600",
     textAlign: "center",
   },
   avisoAcesso: {
-    color: "#333",
+    color: cores.tinta,
     fontSize: 14,
     fontWeight: "600",
     textAlign: "center",
   },
   removerText: {
-    color: "#8B0000",
+    color: cores.erro,
     fontSize: 14,
     fontWeight: "600",
     textDecorationLine: "underline",
   },
   dangerButton: {
     borderWidth: 2,
-    borderColor: "#8B0000",
+    borderColor: cores.erro,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: "center",
   },
   dangerButtonText: {
-    color: "#8B0000",
+    color: cores.erro,
     fontSize: 16,
     fontWeight: "600",
   },

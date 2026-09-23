@@ -40,7 +40,7 @@ export const galpaoNortePendente = {
 
 const agoraIso = new Date().toISOString();
 const cincoMinutosDepois = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-const dezMinutosAtras = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+const umaHoraAtras = new Date(Date.now() - 61 * 60 * 1000).toISOString();
 
 export const leituraNormal = {
   id: 1,
@@ -63,5 +63,5 @@ export const leituraAlerta = {
 export const leituraOffline = {
   ...leituraNormal,
   id: 99,
-  criado_em: dezMinutosAtras,
+  criado_em: umaHoraAtras,
 };

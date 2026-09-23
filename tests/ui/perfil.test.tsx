@@ -17,6 +17,10 @@ jest.mock("@/contexts/auth", () => ({
   useAuth: jest.fn(),
 }));
 
+jest.mock("@/contexts/push", () => ({
+  usePush: () => ({ token: null, erro: null }),
+}));
+
 jest.mock("@/lib/database", () => ({
   formatarCpf: (cpf: string) =>
     cpf === "12345678900" ? "123.456.789-00" : cpf,
@@ -71,6 +75,7 @@ describe("PerfilScreen", () => {
   it("valida senha curta e confirmação", async () => {
     render(<PerfilScreen />);
 
+    fireEvent.changeText(screen.getByPlaceholderText("Senha atual"), "atual123");
     fireEvent.changeText(screen.getByPlaceholderText("Nova senha"), "123");
     fireEvent.changeText(
       screen.getByPlaceholderText("Confirmar nova senha"),
@@ -99,6 +104,7 @@ describe("PerfilScreen", () => {
 
     fireEvent.changeText(screen.getByDisplayValue("Maria Silva"), "Maria Souza");
     fireEvent.changeText(screen.getByDisplayValue("31999990000"), "31888887777");
+    fireEvent.changeText(screen.getByPlaceholderText("Senha atual"), "atual123");
     fireEvent.changeText(screen.getByPlaceholderText("Nova senha"), "senha123");
     fireEvent.changeText(
       screen.getByPlaceholderText("Confirmar nova senha"),
@@ -111,6 +117,7 @@ describe("PerfilScreen", () => {
         nome: "Maria Souza",
         telefone: "31888887777",
         senha: "senha123",
+        senhaAtual: "atual123",
       });
     });
     expect(await screen.findByText("Dados atualizados.")).toBeOnTheScreen();

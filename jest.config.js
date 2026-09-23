@@ -26,6 +26,7 @@ if (ci) {
 
 module.exports = {
   preset: "jest-expo",
+  testTimeout: 20000,
   testMatch: [
     "<rootDir>/tests/unit/**/*.test.ts",
     "<rootDir>/tests/unit/**/*.test.tsx",

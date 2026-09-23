@@ -57,6 +57,7 @@ jest.mock("@/contexts/simulador", () => ({
     ultima: null,
     iniciar: jest.fn(),
     parar: jest.fn(),
+    testarAlerta: jest.fn(),
   }),
 }));
 
@@ -74,6 +75,8 @@ jest.mock("@/lib/database", () => ({
   sairDoGalpao: jest.fn(),
   listarNotificacoes: jest.fn(),
   marcarNotificacaoLida: jest.fn(),
+  ocultarNotificacao: jest.fn(),
+  ocultarNotificacoes: jest.fn(),
   notificarSensorOffline: jest.fn(),
 }));
 
@@ -210,8 +213,36 @@ describe("HomeLogadaScreen", () => {
     });
   });
 
-  it("cria galpão e mostra o código gerado", async () => {
-    (criarGalpao as jest.Mock).mockResolvedValue(galpaoNorte);
+  it("cria galpão vinculado a um dispositivo e mostra a chave", async () => {
+    (criarGalpao as jest.Mock).mockResolvedValue({
+      galpao: galpaoNorte,
+      dispositivoNome: "ESP-2",
+      chave: "ESP-2",
+    });
+    render(<HomeLogadaScreen />);
+    await screen.findByText("Olá, Maria!");
+
+    fireEvent.press(screen.getByText("Novo galpão"));
+    fireEvent.changeText(
+      screen.getByPlaceholderText("Nome do galpão"),
+      "Galpão Norte"
+    );
+    fireEvent.changeText(
+      screen.getByPlaceholderText("Nome do dispositivo"),
+      "ESP-2"
+    );
+    fireEvent.press(screen.getByText("Confirmar"));
+
+    await waitFor(() => {
+      expect(criarGalpao).toHaveBeenCalledWith("Galpão Norte", "ESP-2");
+      expect(screen.getByText("Galpão criado")).toBeOnTheScreen();
+      expect(screen.getByText("ABC123")).toBeOnTheScreen();
+      expect(screen.getByText("X-Device-Key")).toBeOnTheScreen();
+      expect(screen.getByText("ESP-2")).toBeOnTheScreen();
+    });
+  });
+
+  it("alerta se tentar criar galpão sem dispositivo", async () => {
     render(<HomeLogadaScreen />);
     await screen.findByText("Olá, Maria!");
 
@@ -222,13 +253,11 @@ describe("HomeLogadaScreen", () => {
     );
     fireEvent.press(screen.getByText("Confirmar"));
 
-    await waitFor(() => {
-      expect(criarGalpao).toHaveBeenCalledWith("Galpão Norte");
-      expect(Alert.alert).toHaveBeenCalledWith(
-        "Galpão criado",
-        "Código para convidar outros usuários: ABC123"
-      );
-    });
+    expect(Alert.alert).toHaveBeenCalledWith(
+      "Galpão",
+      "Informe o nome do dispositivo."
+    );
+    expect(criarGalpao).not.toHaveBeenCalled();
   });
 
   it("chama signOut pelo botão Sair", async () => {

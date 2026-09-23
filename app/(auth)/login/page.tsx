@@ -1,10 +1,10 @@
+import { cores } from "@/constants/tema";
 import { useAuth } from "@/contexts/auth";
 import { mensagemDeErro } from "@/lib/erros";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   StatusBar,
   StyleSheet,
   Text,
@@ -39,14 +39,14 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#f9ca0a" barStyle="dark-content" />
+      <StatusBar backgroundColor={cores.fundo} barStyle="dark-content" />
 
       <Text style={styles.title}>Login</Text>
 
       <TextInput
         style={styles.input}
         placeholder="E-mail"
-        placeholderTextColor="#555"
+        placeholderTextColor={cores.tintaSuave}
         keyboardType="email-address"
         autoCapitalize="none"
         autoComplete="email"
@@ -60,7 +60,7 @@ export default function LoginScreen() {
       <TextInput
         style={styles.input}
         placeholder="Senha"
-        placeholderTextColor="#555"
+        placeholderTextColor={cores.tintaSuave}
         secureTextEntry
         value={senha}
         onChangeText={(valor) => {
@@ -77,7 +77,7 @@ export default function LoginScreen() {
         disabled={enviando}
       >
         {enviando ? (
-          <ActivityIndicator color="#f9ca0a" />
+          <ActivityIndicator color={cores.fundo} />
         ) : (
           <Text style={styles.buttonText}>Entrar</Text>
         )}
@@ -85,10 +85,10 @@ export default function LoginScreen() {
 
       <TouchableOpacity
         onPress={() =>
-          Alert.alert(
-            "Recuperar senha",
-            "Ainda não está disponível. Peça a um colega com acesso ao painel do Supabase."
-          )
+          router.navigate({
+            pathname: "/(auth)/recuperar/page",
+            params: email.trim() ? { email: email.trim() } : {},
+          })
         }
       >
         <Text style={styles.linkText}>Esqueci minha senha</Text>
@@ -104,7 +104,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9ca0a",
+    backgroundColor: cores.fundo,
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
@@ -112,29 +112,29 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    color: "#333",
+    color: cores.tinta,
     marginBottom: 40,
   },
   input: {
     width: "100%",
     height: 55,
-    backgroundColor: "#fff",
+    backgroundColor: cores.branco,
     borderRadius: 10,
     paddingHorizontal: 15,
     fontSize: 16,
     marginBottom: 20,
-    color: "#333",
+    color: cores.tinta,
   },
   erro: {
     width: "100%",
-    color: "#8B0000",
+    color: cores.erro,
     fontSize: 15,
     fontWeight: "600",
     textAlign: "center",
     marginBottom: 16,
   },
   button: {
-    backgroundColor: "#333",
+    backgroundColor: cores.tinta,
     paddingVertical: 15,
     paddingHorizontal: 40,
     borderRadius: 10,
@@ -146,18 +146,18 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: "#f9ca0a",
+    color: cores.fundo,
     fontSize: 18,
     fontWeight: "600",
   },
   linkText: {
-    color: "#333",
+    color: cores.tinta,
     marginTop: 10,
     fontSize: 16,
     textDecorationLine: "underline",
   },
   createAccountText: {
-    color: "#333",
+    color: cores.tinta,
     marginTop: 25,
     fontSize: 16,
     fontWeight: "600",
