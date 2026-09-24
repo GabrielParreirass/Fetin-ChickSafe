@@ -47,7 +47,7 @@ export const leituraNormal = {
   galpao_id: "galpao-1",
   energia: "Fonte" as const,
   tensao: 4.2,
-  corrente: 80,
+  corrente: 250,
   criado_em: agoraIso,
 };
 
@@ -56,7 +56,7 @@ export const leituraAlerta = {
   galpao_id: "galpao-1",
   energia: "Bateria" as const,
   tensao: 2.5,
-  corrente: 20,
+  corrente: 150,
   criado_em: cincoMinutosDepois,
 };
 

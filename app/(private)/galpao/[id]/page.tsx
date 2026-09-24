@@ -6,13 +6,14 @@ import { useGalpao } from "@/hooks/use-galpao";
 import { ehDono } from "@/lib/acesso";
 import { acessoAprovado } from "@/lib/galpao";
 import {
-  correnteOk,
+  corFaixaCorrente,
+  faixaCorrente,
   formatarCorrente,
   formatarTempoSemSinal,
   formatarTensao,
-  LIMIAR_CORRENTE_MA,
   LIMIAR_TENSAO_V,
   rotuloEnergia,
+  rotuloFaixaCorrente,
   statusGalpao,
   tensaoOk,
   corRotuloStatus,
@@ -37,53 +38,55 @@ type StatusCard = {
   campo: "energia" | "tensao" | "corrente";
   titulo: string;
   valor: string;
-  ok: boolean;
+  cor: string;
 };
 
 function cardsDaLeitura(
   leitura: Leitura | null,
-  limiarTensao = LIMIAR_TENSAO_V,
-  limiarCorrente = LIMIAR_CORRENTE_MA
+  limiarTensao = LIMIAR_TENSAO_V
 ): StatusCard[] {
   if (!leitura) {
     return [
-      { campo: "energia", titulo: "Energia", valor: "Sem dados", ok: false },
+      { campo: "energia", titulo: "Energia", valor: "Sem dados", cor: cores.semDados },
       {
         campo: "tensao",
         titulo: "Tensão da Bateria",
         valor: "Sem dados",
-        ok: false,
+        cor: cores.semDados,
       },
       {
         campo: "corrente",
         titulo: "Corrente do ventilador",
         valor: "Sem dados",
-        ok: false,
+        cor: cores.semDados,
       },
     ];
   }
 
   const tensao = Number(leitura.tensao);
   const corrente = Number(leitura.corrente);
+  const faixa = faixaCorrente(corrente);
+  const tensaoNormal = tensaoOk(tensao, limiarTensao);
+  const energiaNormal = rotuloEnergia(leitura.energia) === "Fonte";
 
   return [
     {
       campo: "energia",
       titulo: "Energia",
       valor: rotuloEnergia(leitura.energia),
-      ok: rotuloEnergia(leitura.energia) === "Fonte",
+      cor: energiaNormal ? cores.normal : cores.alerta,
     },
     {
       campo: "tensao",
       titulo: "Tensão da Bateria",
       valor: formatarTensao(tensao),
-      ok: tensaoOk(tensao, limiarTensao),
+      cor: tensaoNormal ? cores.normal : cores.alerta,
     },
     {
       campo: "corrente",
       titulo: "Corrente do ventilador",
-      valor: formatarCorrente(corrente),
-      ok: correnteOk(corrente, limiarCorrente),
+      valor: `${rotuloFaixaCorrente(faixa)} · ${formatarCorrente(corrente)}`,
+      cor: corFaixaCorrente(faixa),
     },
   ];
 }
@@ -103,11 +106,7 @@ export default function GalpaoDetalheScreen() {
   const [modalVisible, setModalVisible] = useState(false);
 
   const primeiroNome = (usuario?.nome ?? "produtor").split(" ")[0];
-  const cards = cardsDaLeitura(
-    leitura,
-    ambienteSelecionado?.limiarTensao,
-    ambienteSelecionado?.limiarCorrente
-  );
+  const cards = cardsDaLeitura(leitura, ambienteSelecionado?.limiarTensao);
   const geral = statusGalpao(
     leitura,
     ambienteSelecionado?.limiarTensao,
@@ -291,11 +290,7 @@ export default function GalpaoDetalheScreen() {
                       style={[
                         styles.card,
                         {
-                          backgroundColor: offline
-                            ? cores.offline
-                            : card.ok
-                              ? cores.normal
-                              : cores.alerta,
+                          backgroundColor: offline ? cores.offline : card.cor,
                         },
                       ]}
                     >

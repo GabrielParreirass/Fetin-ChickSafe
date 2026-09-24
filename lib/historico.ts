@@ -1,10 +1,12 @@
 import {
-  correnteOk,
+  entrouEmAlerta,
+  voltouAoNormal,
+  faixaCorrente,
   formatarCorrente,
   formatarTensao,
-  LIMIAR_CORRENTE_MA,
   LIMIAR_TENSAO_V,
   rotuloEnergia,
+  rotuloFaixaCorrente,
   rotuloSituacao,
   tensaoOk,
 } from "@/lib/status";
@@ -26,14 +28,21 @@ export type LimiaresGalpao = {
   corrente: number;
 };
 
+export type CampoRegistro = {
+  campo: CampoMudanca;
+  anterior: string;
+  novo: string;
+  mudou: boolean;
+};
+
 export type MudancaLeitura = {
   id: string;
   galpaoId: string;
   galpaoNome: string;
-  campo: CampoMudanca;
-  estadoAnterior: string;
-  novoEstado: string;
   dataHora: Date;
+  campos: CampoRegistro[];
+  entrouEmAlerta: boolean;
+  voltouAoNormal: boolean;
 };
 
 export type FiltroHistorico = {
@@ -44,7 +53,7 @@ export type FiltroHistorico = {
 
 const LIMIARES_PADRAO: LimiaresGalpao = {
   tensao: LIMIAR_TENSAO_V,
-  corrente: LIMIAR_CORRENTE_MA,
+  corrente: 0,
 };
 
 const CAMPO_POR_FILTRO: Record<Exclude<FiltroCampoMudanca, "todos">, CampoMudanca> =
@@ -63,9 +72,10 @@ function estadoTensao(leitura: Leitura, limiar: number): string {
   return `${rotuloSituacao(tensaoOk(tensao, limiar))} (${formatarTensao(tensao)})`;
 }
 
-function estadoCorrente(leitura: Leitura, limiar: number): string {
+function estadoCorrente(leitura: Leitura): string {
   const corrente = Number(leitura.corrente);
-  return `${rotuloSituacao(correnteOk(corrente, limiar))} (${formatarCorrente(corrente)})`;
+  const rotulo = rotuloFaixaCorrente(faixaCorrente(corrente));
+  return `${rotulo} (${formatarCorrente(corrente)})`;
 }
 
 export function parseDataBr(texto: string): Date | null {
@@ -123,7 +133,7 @@ export function filtrarMudancas(
   const ate = filtro.dataFim ? fimDoDia(filtro.dataFim) : null;
 
   return mudancas.filter((item) => {
-    if (campo && item.campo !== campo) {
+    if (campo && !item.campos.some((parte) => parte.campo === campo && parte.mudou)) {
       return false;
     }
     if (de && item.dataHora < de) {
@@ -163,34 +173,46 @@ export function extrairMudancas(
       const atual = lista[i];
       const dataHora = new Date(atual.criado_em);
 
-      const pares: Array<[CampoMudanca, string, string]> = [
-        [CAMPO_ENERGIA, estadoEnergia(anterior), estadoEnergia(atual)],
-        [
-          CAMPO_TENSAO,
-          estadoTensao(anterior, limiares.tensao),
-          estadoTensao(atual, limiares.tensao),
-        ],
-        [
-          CAMPO_CORRENTE,
-          estadoCorrente(anterior, limiares.corrente),
-          estadoCorrente(atual, limiares.corrente),
-        ],
+      const energiaAnterior = estadoEnergia(anterior);
+      const energiaNova = estadoEnergia(atual);
+      const tensaoAnterior = estadoTensao(anterior, limiares.tensao);
+      const tensaoNova = estadoTensao(atual, limiares.tensao);
+      const correnteAnterior = estadoCorrente(anterior);
+      const correnteNova = estadoCorrente(atual);
+      const campos: CampoRegistro[] = [
+        {
+          campo: CAMPO_ENERGIA,
+          anterior: energiaAnterior,
+          novo: energiaNova,
+          mudou: energiaAnterior !== energiaNova,
+        },
+        {
+          campo: CAMPO_TENSAO,
+          anterior: tensaoAnterior,
+          novo: tensaoNova,
+          mudou: tensaoAnterior !== tensaoNova,
+        },
+        {
+          campo: CAMPO_CORRENTE,
+          anterior: correnteAnterior,
+          novo: correnteNova,
+          mudou: correnteAnterior !== correnteNova,
+        },
       ];
 
-      for (const [campo, estadoAnterior, novoEstado] of pares) {
-        if (estadoAnterior === novoEstado) {
-          continue;
-        }
-        mudancas.push({
-          id: `${atual.id}-${campo}`,
-          galpaoId,
-          galpaoNome,
-          campo,
-          estadoAnterior,
-          novoEstado,
-          dataHora,
-        });
+      if (!campos.some((parte) => parte.mudou)) {
+        continue;
       }
+
+      mudancas.push({
+        id: String(atual.id),
+        galpaoId,
+        galpaoNome,
+        dataHora,
+        campos,
+        entrouEmAlerta: entrouEmAlerta(atual, anterior, limiares.tensao),
+        voltouAoNormal: voltouAoNormal(atual, anterior, limiares.tensao),
+      });
     }
   }
 

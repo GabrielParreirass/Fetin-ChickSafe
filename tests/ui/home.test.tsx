@@ -51,16 +51,6 @@ jest.mock("@/contexts/auth", () => ({
   useAuth: jest.fn(),
 }));
 
-jest.mock("@/contexts/simulador", () => ({
-  useSimulador: () => ({
-    ativo: false,
-    ultima: null,
-    iniciar: jest.fn(),
-    parar: jest.fn(),
-    testarAlerta: jest.fn(),
-  }),
-}));
-
 jest.mock("@/lib/database", () => ({
   listarGalpoesDoUsuario: jest.fn(),
   entrarGalpaoPorCodigo: jest.fn(),
@@ -78,6 +68,7 @@ jest.mock("@/lib/database", () => ({
   ocultarNotificacao: jest.fn(),
   ocultarNotificacoes: jest.fn(),
   notificarSensorOffline: jest.fn(),
+  removerPushToken: jest.fn(),
 }));
 
 jest.mock("@/lib/supabase", () => ({
@@ -444,7 +435,6 @@ describe("HomeLogadaScreen", () => {
 
     fireEvent.changeText(screen.getByDisplayValue("Galpão Norte"), "Galpão Novo");
     fireEvent.changeText(screen.getByDisplayValue("3"), "4");
-    fireEvent.changeText(screen.getByDisplayValue("50"), "80");
     fireEvent.press(screen.getByText("Salvar alterações"));
 
     await waitFor(() => {
@@ -452,7 +442,7 @@ describe("HomeLogadaScreen", () => {
         galpaoId: "galpao-1",
         nome: "Galpão Novo",
         limiarTensao: 4,
-        limiarCorrente: 80,
+        limiarCorrente: 50,
       });
     });
     expect(await screen.findByText("Alterações salvas.")).toBeOnTheScreen();
@@ -527,7 +517,8 @@ describe("HomeLogadaScreen", () => {
 
     expect(screen.getByText("O código de convite não pode ser alterado.")).toBeOnTheScreen();
     expect(screen.getByText("3 V")).toBeOnTheScreen();
-    expect(screen.getByText("50 mA")).toBeOnTheScreen();
+    expect(screen.getByText("De 100 a 200 mA: alerta")).toBeOnTheScreen();
+    expect(screen.queryByText("50 mA")).toBeNull();
     expect(screen.queryByText("Salvar alterações")).toBeNull();
     expect(screen.queryByText("Apagar galpão")).toBeNull();
   });
@@ -560,7 +551,7 @@ describe("HomeLogadaScreen", () => {
     render(<HomeLogadaScreen />);
 
     expect(await screen.findByText("Normal")).toBeOnTheScreen();
-    expect(screen.getByText("Fonte · 4.2 V · 80 mA")).toBeOnTheScreen();
+    expect(screen.getByText("Fonte · 4.2 V · 250 mA")).toBeOnTheScreen();
   });
 
   it("mostra status Alerta quando a leitura está ruim", async () => {
@@ -571,7 +562,7 @@ describe("HomeLogadaScreen", () => {
     render(<HomeLogadaScreen />);
 
     expect(await screen.findByText("Alerta")).toBeOnTheScreen();
-    expect(screen.getByText("Bateria · 2.5 V · 20 mA")).toBeOnTheScreen();
+    expect(screen.getByText("Bateria · 2.5 V · 150 mA")).toBeOnTheScreen();
   });
 
   it("atualiza o status quando chega uma leitura nova", async () => {
@@ -590,7 +581,7 @@ describe("HomeLogadaScreen", () => {
     });
 
     expect(await screen.findByText("Alerta")).toBeOnTheScreen();
-    expect(screen.getByText("Bateria · 2.5 V · 20 mA")).toBeOnTheScreen();
+    expect(screen.getByText("Bateria · 2.5 V · 150 mA")).toBeOnTheScreen();
   });
 
   it("mostra Offline e notifica quando a leitura está velha", async () => {

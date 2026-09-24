@@ -11,6 +11,8 @@ import {
 import { listarGalpoesDoUsuario, listarLeituras } from "@/lib/database";
 import { htmlDashboard, nomeArquivoPdfDashboard } from "@/lib/exportar";
 import {
+  CORRENTE_ALERTA_MAX_MA,
+  CORRENTE_CRITICA_MA,
   formatarCorrente,
   formatarTensao,
 } from "@/lib/status";
@@ -159,8 +161,8 @@ export default function DashboardGalpaoScreen() {
             <Text style={styles.subtitulo}>{galpao.nome}</Text>
             {!resumo ? (
               <Text style={styles.emptyText}>
-                Ainda não há leituras para montar os gráficos. Ligue o
-                simulador ou aguarde o ESP32.
+                Ainda não há leituras para montar os gráficos. Aguarde o
+                ESP32.
               </Text>
             ) : (
               <>
@@ -239,8 +241,8 @@ export default function DashboardGalpaoScreen() {
                   Corrente ao longo do tempo
                 </Text>
                 <Text style={styles.graficoAjuda}>
-                  Linha vermelha: limiar de{" "}
-                  {formatarCorrente(galpao.limiarCorrente)}
+                  Linha amarela: {formatarCorrente(CORRENTE_ALERTA_MAX_MA)}.
+                  Linha vermelha: {formatarCorrente(CORRENTE_CRITICA_MA)}.
                 </Text>
                 <LineChart
                   data={serieCorrente}
@@ -262,9 +264,16 @@ export default function DashboardGalpaoScreen() {
                     )
                   )}
                   showReferenceLine1
-                  referenceLine1Position={galpao.limiarCorrente}
+                  referenceLine1Position={CORRENTE_ALERTA_MAX_MA}
                   referenceLine1Config={{
                     color: cores.alerta,
+                    dashWidth: 4,
+                    dashGap: 3,
+                  }}
+                  showReferenceLine2
+                  referenceLine2Position={CORRENTE_CRITICA_MA}
+                  referenceLine2Config={{
+                    color: cores.critico,
                     dashWidth: 4,
                     dashGap: 3,
                   }}

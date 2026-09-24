@@ -40,7 +40,6 @@ export function PushProvider({ children }: { children: ReactNode }) {
         }
         setToken(valor);
         if (valor) {
-          console.log("Expo push token:", valor);
           void salvarPushToken(user.id, valor).catch((falha: unknown) => {
             const detalhe =
               falha instanceof Error ? falha.message : "Falha ao salvar token.";

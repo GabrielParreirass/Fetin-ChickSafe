@@ -1,10 +1,14 @@
 import { cores } from "@/constants/tema";
 import { useAuth } from "@/contexts/auth";
-import { useSimulador } from "@/contexts/simulador";
+import { usePush } from "@/contexts/push";
 import { useGalpaoGestao } from "@/components/galpao-gestao";
 import { SinoNotificacoes } from "@/components/notificacoes";
 import { useHomeGalpoes } from "@/hooks/use-home-galpoes";
-import { criarGalpao, entrarGalpaoPorCodigo } from "@/lib/database";
+import {
+  criarGalpao,
+  entrarGalpaoPorCodigo,
+  removerPushToken,
+} from "@/lib/database";
 import { acessoAprovado } from "@/lib/galpao";
 import { corRotuloStatus, resumoLeitura, statusGalpao } from "@/lib/status";
 import type { Galpao } from "@/lib/types";
@@ -26,7 +30,7 @@ import {
 
 export default function HomeLogadaScreen() {
   const { usuario, user, signOut } = useAuth();
-  const { ativo, ultima, iniciar, parar, testarAlerta } = useSimulador();
+  const { token: pushToken } = usePush();
   const { galpoes, leituras, carregando, agora, carregar } = useHomeGalpoes(
     user?.id
   );
@@ -118,6 +122,7 @@ export default function HomeLogadaScreen() {
 
   const handleSair = async () => {
     try {
+      await removerPushToken(pushToken);
       await signOut();
     } catch (error) {
       const mensagem =
@@ -244,31 +249,6 @@ export default function HomeLogadaScreen() {
         )}
 
         <View style={styles.footerActions}>
-          <TouchableOpacity
-            style={[
-              ativo ? styles.primaryButton : styles.secondaryButton,
-              styles.footerButton,
-            ]}
-            onPress={() => (ativo ? parar() : void iniciar())}
-          >
-            <Text
-              style={ativo ? styles.primaryButtonText : styles.secondaryButtonText}
-            >
-              {ativo ? "Parar simulador ESP32" : "Simular ESP32 (1 min)"}
-            </Text>
-          </TouchableOpacity>
-          {ativo && ultima ? (
-            <Text style={styles.simuladorStatus}>
-              Último envio: {ultima.energia} · {Number(ultima.tensao).toFixed(1)} V ·{" "}
-              {Math.round(Number(ultima.corrente))} mA
-            </Text>
-          ) : null}
-          <TouchableOpacity
-            style={[styles.secondaryButton, styles.footerButton]}
-            onPress={() => void testarAlerta()}
-          >
-            <Text style={styles.secondaryButtonText}>Testar alerta nos galpões</Text>
-          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.secondaryButton, styles.footerButton]}
             onPress={() => setModal("entrar")}
@@ -497,12 +477,6 @@ const styles = StyleSheet.create({
   footerButton: {
     marginBottom: 16,
   },
-  simuladorStatus: {
-    fontSize: 13,
-    color: cores.tintaSuave,
-    textAlign: "center",
-    marginBottom: 16,
-  },
   primaryButton: {
     backgroundColor: cores.tinta,
     borderRadius: 10,
@@ -559,39 +533,6 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
     marginTop: 4,
   },
-  emptyAcessoText: {
-    fontSize: 15,
-    color: cores.tintaSuave,
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  acessoItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: cores.divisor,
-  },
-  acessoInfo: {
-    flex: 1,
-  },
-  acessoNome: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: cores.tinta,
-  },
-  acessoEmail: {
-    fontSize: 13,
-    color: cores.tintaFraca,
-    marginTop: 2,
-  },
-  acessoPapel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: cores.tinta,
-  },
   campoLabel: {
     fontSize: 13,
     fontWeight: "600",
@@ -613,35 +554,5 @@ const styles = StyleSheet.create({
     color: cores.tinta,
     fontWeight: "600",
     marginBottom: 8,
-  },
-  erroAcesso: {
-    color: cores.erro,
-    fontSize: 14,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  avisoAcesso: {
-    color: cores.tinta,
-    fontSize: 14,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  removerText: {
-    color: cores.erro,
-    fontSize: 14,
-    fontWeight: "600",
-    textDecorationLine: "underline",
-  },
-  dangerButton: {
-    borderWidth: 2,
-    borderColor: cores.erro,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  dangerButtonText: {
-    color: cores.erro,
-    fontSize: 16,
-    fontWeight: "600",
   },
 });

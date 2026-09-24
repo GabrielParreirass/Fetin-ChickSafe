@@ -74,7 +74,7 @@ describe("HistoricoScreen", () => {
     render(<HistoricoScreen />);
 
     expect(
-      await screen.findByText(/Ligue o simulador ou aguarde o ESP32/)
+      await screen.findByText(/Aguarde o ESP32 publicar/)
     ).toBeOnTheScreen();
   });
 
@@ -85,12 +85,10 @@ describe("HistoricoScreen", () => {
     ]);
     render(<HistoricoScreen />);
 
-    expect(await screen.findByText("Energia")).toBeOnTheScreen();
+    expect(await screen.findByText(/Fonte → Bateria/)).toBeOnTheScreen();
     expect(screen.getAllByText("Galpão Norte").length).toBeGreaterThan(0);
-    expect(screen.getByText("Anterior: Fonte")).toBeOnTheScreen();
-    expect(screen.getByText("Novo: Bateria")).toBeOnTheScreen();
-    expect(screen.getByText("Tensão da Bateria")).toBeOnTheScreen();
-    expect(screen.getAllByText("Corrente do ventilador").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Normal \(4\.2 V\) → Alerta \(2\.5 V\)/)).toBeOnTheScreen();
+    expect(screen.getByText(/250 mA/)).toBeOnTheScreen();
   });
 
   it("volta pela seta do header", async () => {
@@ -121,7 +119,7 @@ describe("HistoricoScreen", () => {
 
     render(<HistoricoScreen />);
 
-    expect(await screen.findByText("Energia")).toBeOnTheScreen();
+    expect(await screen.findByText(/Fonte → Bateria/)).toBeOnTheScreen();
     expect(listarLeituras).toHaveBeenCalledWith("galpao-2");
     expect(listarLeituras).not.toHaveBeenCalledWith("galpao-1");
     expect(screen.getAllByText("Galpão Sul").length).toBeGreaterThan(0);
@@ -138,31 +136,13 @@ describe("HistoricoScreen", () => {
     });
   });
 
-  it("filtra pelo tipo de mudança", async () => {
-    (listarLeituras as jest.Mock).mockResolvedValue([
-      leituraNormal,
-      leituraAlerta,
-    ]);
-    render(<HistoricoScreen />);
-    expect(await screen.findByText("Energia")).toBeOnTheScreen();
-    expect(screen.getByText("Tensão da Bateria")).toBeOnTheScreen();
-
-    fireEvent.press(screen.getByText("Tensão da bateria"));
-
-    expect(screen.getByText("Tensão da Bateria")).toBeOnTheScreen();
-    expect(screen.queryByText("Anterior: Fonte")).toBeNull();
-    expect(screen.queryByText("Anterior: Alerta (20 mA)")).toBeNull();
-    expect(screen.getByText("Anterior: Normal (4.2 V)")).toBeOnTheScreen();
-    expect(screen.getByText("Novo: Alerta (2.5 V)")).toBeOnTheScreen();
-  });
-
   it("filtra por data escolhida no calendário", async () => {
     (listarLeituras as jest.Mock).mockResolvedValue([
       leituraNormal,
       leituraAlerta,
     ]);
     render(<HistoricoScreen />);
-    expect(await screen.findByText("Energia")).toBeOnTheScreen();
+    expect(await screen.findByText(/Fonte → Bateria/)).toBeOnTheScreen();
 
     fireEvent.press(screen.getByLabelText("Escolher data final"));
     expect(screen.getByText("Seg")).toBeOnTheScreen();
@@ -181,7 +161,7 @@ describe("HistoricoScreen", () => {
   it("abre o calendário da data final", async () => {
     (listarLeituras as jest.Mock).mockResolvedValue([leituraNormal]);
     render(<HistoricoScreen />);
-    await screen.findByText(/Ligue o simulador ou aguarde o ESP32/);
+    await screen.findByText(/Aguarde o ESP32 publicar/);
 
     fireEvent.press(screen.getByLabelText("Escolher data final"));
 
@@ -197,7 +177,7 @@ describe("HistoricoScreen", () => {
     ]);
     (compartilharPdfHtml as jest.Mock).mockResolvedValue(undefined);
     render(<HistoricoScreen />);
-    expect(await screen.findByText("Energia")).toBeOnTheScreen();
+    expect(await screen.findByText(/Fonte → Bateria/)).toBeOnTheScreen();
 
     fireEvent.press(screen.getByLabelText("Exportar histórico"));
 
@@ -217,7 +197,7 @@ describe("HistoricoScreen", () => {
   it("avisa quando não há mudanças para exportar", async () => {
     (listarLeituras as jest.Mock).mockResolvedValue([leituraNormal]);
     render(<HistoricoScreen />);
-    await screen.findByText(/Ligue o simulador ou aguarde o ESP32/);
+    await screen.findByText(/Aguarde o ESP32 publicar/);
 
     fireEvent.press(screen.getByLabelText("Exportar histórico"));
 

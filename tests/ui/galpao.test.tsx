@@ -131,7 +131,7 @@ describe("GalpaoDetalheScreen", () => {
 
     expect(await screen.findByText("Fonte")).toBeOnTheScreen();
     expect(screen.getByText("4.2 V")).toBeOnTheScreen();
-    expect(screen.getByText("80 mA")).toBeOnTheScreen();
+    expect(screen.getByText("Normal · 250 mA")).toBeOnTheScreen();
   });
 
   it("mostra leitura em alerta (bateria, tensão e corrente baixas)", async () => {
@@ -140,7 +140,7 @@ describe("GalpaoDetalheScreen", () => {
 
     expect(await screen.findByText("Bateria")).toBeOnTheScreen();
     expect(screen.getByText("2.5 V")).toBeOnTheScreen();
-    expect(screen.getByText("20 mA")).toBeOnTheScreen();
+    expect(screen.getByText("Alerta · 150 mA")).toBeOnTheScreen();
   });
 
   it("mostra banner de sensor offline quando a leitura está velha", async () => {
@@ -226,7 +226,7 @@ describe("GalpaoDetalheScreen", () => {
 
     expect(await screen.findByText("Bateria")).toBeOnTheScreen();
     expect(screen.getByText("2.5 V")).toBeOnTheScreen();
-    expect(screen.getByText("20 mA")).toBeOnTheScreen();
+    expect(screen.getByText("Alerta · 150 mA")).toBeOnTheScreen();
   });
 
   it("abre o acesso do galpão selecionado", async () => {
