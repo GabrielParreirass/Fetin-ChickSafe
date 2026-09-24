@@ -77,7 +77,7 @@ export function pontosCorrente(leituras: Leitura[]): PontoGrafico[] {
 export function resumoDashboard(
   leituras: Leitura[],
   limiarTensao: number,
-  limiarCorrente: number
+  _limiarCorrente: number
 ): ResumoDashboard | null {
   if (leituras.length === 0) {
     return null;
@@ -93,7 +93,7 @@ export function resumoDashboard(
     return (
       rotuloEnergia(item.energia) !== "Fonte" ||
       !tensaoOk(Number(item.tensao), limiarTensao) ||
-      !correnteOk(Number(item.corrente), limiarCorrente)
+      !correnteOk(Number(item.corrente))
     );
   }).length;
 

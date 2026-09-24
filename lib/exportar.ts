@@ -155,15 +155,19 @@ export function htmlHistorico(
 ): string {
   const gerado = formatarDataExportacao(geradoEm);
   const linhas = mudancas
-    .map(
-      (item) => `<tr>
+    .map((item) => {
+      const detalhes = item.campos
+        .map(
+          (parte) =>
+            `${escaparHtml(parte.campo)}: ${escaparHtml(parte.anterior)} → ${escaparHtml(parte.novo)}`
+        )
+        .join("<br/>");
+      return `<tr>
         <td>${escaparHtml(formatarDataExportacao(item.dataHora))}</td>
         <td>${escaparHtml(item.galpaoNome)}</td>
-        <td>${escaparHtml(item.campo)}</td>
-        <td>${escaparHtml(item.estadoAnterior)}</td>
-        <td>${escaparHtml(item.novoEstado)}</td>
-      </tr>`
-    )
+        <td>${detalhes}</td>
+      </tr>`;
+    })
     .join("");
   return `<!DOCTYPE html>
 <html>
@@ -180,9 +184,7 @@ export function htmlHistorico(
         <tr>
           <th>Data/hora</th>
           <th>Galpão</th>
-          <th>Campo</th>
-          <th>Anterior</th>
-          <th>Novo</th>
+          <th>Registro</th>
         </tr>
       </thead>
       <tbody>${linhas}</tbody>
@@ -207,7 +209,7 @@ export function htmlDashboard(input: {
   );
   const graficoCorrente = svgLinha(
     pontosCorrente(input.leituras).map((ponto) => ponto.value),
-    { limiar: input.limiarCorrente, cor: cores.tinta }
+    { limiar: 200, cor: cores.tinta }
   );
   const pizza = svgDonut(fatiasEnergia(input.resumo));
   const linhas = serie
@@ -248,12 +250,12 @@ export function htmlDashboard(input: {
         <td>Leituras em alerta<br /><strong>${Math.round(input.resumo.percentualAlerta)}%</strong><br />${input.resumo.leiturasAlerta} de ${input.resumo.total}</td>
       </tr>
     </table>
-    <p class="meta">Limiares: tensão ${escaparHtml(formatarTensao(input.limiarTensao))} · corrente ${escaparHtml(formatarCorrente(input.limiarCorrente))}</p>
+    <p class="meta">Limiar de tensão: ${escaparHtml(formatarTensao(input.limiarTensao))}. Corrente: crítico abaixo de 100 mA, alerta de 100 a 200 mA, normal acima de 200 mA.</p>
     <h2>Tensão ao longo do tempo</h2>
     <p class="meta">Linha vermelha: limiar de ${escaparHtml(formatarTensao(input.limiarTensao))}</p>
     <div class="grafico">${graficoTensao}</div>
     <h2>Corrente ao longo do tempo</h2>
-    <p class="meta">Linha vermelha: limiar de ${escaparHtml(formatarCorrente(input.limiarCorrente))}</p>
+    <p class="meta">No gráfico de corrente, a linha marca 200 mA.</p>
     <div class="grafico">${graficoCorrente}</div>
     <h2>Fonte vs bateria</h2>
     <div class="pizza">${pizza}</div>

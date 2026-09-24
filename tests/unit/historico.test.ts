@@ -56,11 +56,11 @@ describe("extrairMudancas", () => {
     const mudancas = extrairMudancas(leituras, NOMES);
 
     expect(mudancas).toHaveLength(1);
-    expect(mudancas[0]).toMatchObject({
-      campo: "Energia",
-      estadoAnterior: "Fonte",
-      novoEstado: "Bateria",
-      galpaoNome: "Galpão Norte",
+    expect(mudancas[0].galpaoNome).toBe("Galpão Norte");
+    expect(mudancas[0].campos.find((parte) => parte.campo === "Energia")).toMatchObject({
+      anterior: "Fonte",
+      novo: "Bateria",
+      mudou: true,
     });
   });
 
@@ -80,13 +80,14 @@ describe("extrairMudancas", () => {
       }),
     ];
 
-    const mudancas = extrairMudancas(leituras, NOMES).filter(
-      (item) => item.campo === "Tensão da Bateria"
+    const mudancas = extrairMudancas(leituras, NOMES);
+    const tensao = mudancas[0]?.campos.find(
+      (parte) => parte.campo === "Tensão da Bateria"
     );
 
     expect(mudancas).toHaveLength(1);
-    expect(mudancas[0].estadoAnterior).toBe("Alerta (2.9 V)");
-    expect(mudancas[0].novoEstado).toBe("Normal (3.1 V)");
+    expect(tensao?.anterior).toBe("Alerta (2.9 V)");
+    expect(tensao?.novo).toBe("Normal (3.1 V)");
   });
 
   it("detecta cruzamento do limiar de corrente", () => {
@@ -105,13 +106,14 @@ describe("extrairMudancas", () => {
       }),
     ];
 
-    const mudancas = extrairMudancas(leituras, NOMES).filter(
-      (item) => item.campo === "Corrente do ventilador"
+    const mudancas = extrairMudancas(leituras, NOMES);
+    const corrente = mudancas[0]?.campos.find(
+      (parte) => parte.campo === "Corrente do ventilador"
     );
 
     expect(mudancas).toHaveLength(1);
-    expect(mudancas[0].estadoAnterior).toBe("Alerta (40 mA)");
-    expect(mudancas[0].novoEstado).toBe("Normal (80 mA)");
+    expect(corrente?.anterior).toBe("Crítico (40 mA)");
+    expect(corrente?.novo).toBe("Crítico (80 mA)");
   });
 
   it("ordena pela leitura mais recente mesmo se a entrada vier fora de ordem", () => {
@@ -133,8 +135,8 @@ describe("extrairMudancas", () => {
     const mudancas = extrairMudancas(leituras, NOMES);
 
     expect(mudancas[0].dataHora.toISOString()).toBe("2026-01-01T11:00:00.000Z");
-    expect(mudancas[0].estadoAnterior).toBe("Fonte");
-    expect(mudancas[0].novoEstado).toBe("Bateria");
+    expect(mudancas[0].campos[0].anterior).toBe("Fonte");
+    expect(mudancas[0].campos[0].novo).toBe("Bateria");
   });
 
   it("não mistura leituras de galpões diferentes", () => {
@@ -200,17 +202,18 @@ describe("extrairMudancas", () => {
       [GALPAO]: { tensao: 4, corrente: 80 },
     });
 
+    const registro = mudancas[0];
     expect(
-      mudancas.find((item) => item.campo === "Tensão da Bateria")
+      registro.campos.find((parte) => parte.campo === "Tensão da Bateria")
     ).toMatchObject({
-      estadoAnterior: "Alerta (3.5 V)",
-      novoEstado: "Normal (4.5 V)",
+      anterior: "Alerta (3.5 V)",
+      novo: "Normal (4.5 V)",
     });
     expect(
-      mudancas.find((item) => item.campo === "Corrente do ventilador")
+      registro.campos.find((parte) => parte.campo === "Corrente do ventilador")
     ).toMatchObject({
-      estadoAnterior: "Alerta (60 mA)",
-      novoEstado: "Normal (90 mA)",
+      anterior: "Crítico (60 mA)",
+      novo: "Crítico (90 mA)",
     });
   });
 });
@@ -248,15 +251,9 @@ describe("filtrarMudancas", () => {
   );
 
   it("filtra pelo campo que mudou", () => {
-    expect(filtrarMudancas(base, { campo: "energia" }).map((item) => item.campo)).toEqual([
-      "Energia",
-    ]);
-    expect(filtrarMudancas(base, { campo: "tensao" }).map((item) => item.campo)).toEqual([
-      "Tensão da Bateria",
-    ]);
-    expect(filtrarMudancas(base, { campo: "corrente" }).map((item) => item.campo)).toEqual([
-      "Corrente do ventilador",
-    ]);
+    expect(filtrarMudancas(base, { campo: "energia" })).toHaveLength(1);
+    expect(filtrarMudancas(base, { campo: "tensao" })).toHaveLength(1);
+    expect(filtrarMudancas(base, { campo: "corrente" })).toHaveLength(1);
   });
 
   it("filtra pelo intervalo de datas", () => {
@@ -268,7 +265,7 @@ describe("filtrarMudancas", () => {
         dataInicio: parseDataBr("01/01/2026"),
         dataFim: parseDataBr("01/01/2026"),
       })
-    ).toHaveLength(3);
+    ).toHaveLength(1);
   });
 });
 

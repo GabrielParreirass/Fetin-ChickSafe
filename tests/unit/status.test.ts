@@ -2,9 +2,9 @@ import {
   correnteOk,
   energiaEhFonte,
   entrouEmAlerta,
+  voltouAoNormal,
   formatarCorrente,
   formatarTensao,
-  LIMIAR_CORRENTE_MA,
   LIMIAR_TENSAO_V,
   rotuloEnergia,
   rotuloSituacao,
@@ -60,20 +60,15 @@ describe("tensaoOk", () => {
 });
 
 describe("correnteOk", () => {
-  it("alerta no limiar e abaixo", () => {
-    expect(correnteOk(LIMIAR_CORRENTE_MA)).toBe(false);
-    expect(correnteOk(49)).toBe(false);
-    expect(correnteOk(0)).toBe(false);
+  it("é crítica abaixo de 100 e alerta até 200", () => {
+    expect(correnteOk(99)).toBe(false);
+    expect(correnteOk(100)).toBe(false);
+    expect(correnteOk(200)).toBe(false);
   });
 
-  it("considera normal acima de 50 mA", () => {
-    expect(correnteOk(51)).toBe(true);
-    expect(correnteOk(120)).toBe(true);
-  });
-
-  it("usa o limiar informado quando ele é passado", () => {
-    expect(correnteOk(60, 80)).toBe(false);
-    expect(correnteOk(81, 80)).toBe(true);
+  it("é normal só acima de 200 mA", () => {
+    expect(correnteOk(201)).toBe(true);
+    expect(correnteOk(250)).toBe(true);
   });
 });
 
@@ -94,23 +89,26 @@ describe("statusGeralLeitura", () => {
 
   it("marca Normal quando energia, tensão e corrente estão ok", () => {
     expect(
-      statusGeralLeitura({ energia: "Fonte", tensao: 4.2, corrente: 80 })
+      statusGeralLeitura({ energia: "Fonte", tensao: 4.2, corrente: 250 })
     ).toEqual({ ok: true, rotulo: "Normal" });
   });
 
   it("marca Alerta se qualquer campo falha", () => {
     expect(
-      statusGeralLeitura({ energia: "Bateria", tensao: 4.2, corrente: 80 })
+      statusGeralLeitura({ energia: "Bateria", tensao: 4.2, corrente: 250 })
     ).toEqual({ ok: false, rotulo: "Alerta" });
     expect(
-      statusGeralLeitura({ energia: "Fonte", tensao: 2.5, corrente: 80 })
+      statusGeralLeitura({ energia: "Fonte", tensao: 4.2, corrente: 50 })
+    ).toEqual({ ok: false, rotulo: "Crítico" });
+    expect(
+      statusGeralLeitura({ energia: "Fonte", tensao: 2.5, corrente: 250 })
     ).toEqual({ ok: false, rotulo: "Alerta" });
   });
 });
 
 describe("entrouEmAlerta", () => {
-  const normal = { energia: "Fonte", tensao: 4.2, corrente: 80 };
-  const alerta = { energia: "Bateria", tensao: 2.1, corrente: 10 };
+  const normal = { energia: "Fonte", tensao: 4.2, corrente: 250 };
+  const alerta = { energia: "Bateria", tensao: 2.1, corrente: 150 };
 
   it("dispara na primeira leitura em alerta", () => {
     expect(entrouEmAlerta(alerta, null)).toBe(true);
@@ -130,11 +128,23 @@ describe("entrouEmAlerta", () => {
   });
 });
 
+describe("voltouAoNormal", () => {
+  const normal = { energia: "Fonte", tensao: 4.2, corrente: 250 };
+  const alerta = { energia: "Bateria", tensao: 2.1, corrente: 150 };
+
+  it("dispara só na saída do alerta ou crítico", () => {
+    expect(voltouAoNormal(normal, alerta)).toBe(true);
+    expect(voltouAoNormal(alerta, normal)).toBe(false);
+    expect(voltouAoNormal(normal, normal)).toBe(false);
+    expect(voltouAoNormal(normal, null)).toBe(false);
+  });
+});
+
 describe("resumoLeitura", () => {
   it("junta energia, tensão e corrente", () => {
     expect(
-      resumoLeitura({ energia: "USB", tensao: 4.2, corrente: 80 })
-    ).toBe("Fonte · 4.2 V · 80 mA");
+      resumoLeitura({ energia: "USB", tensao: 4.2, corrente: 250 })
+    ).toBe("Fonte · 4.2 V · 250 mA");
   });
 });
 
@@ -171,7 +181,7 @@ describe("statusGalpao", () => {
   const recente = {
     energia: "Fonte",
     tensao: 4.2,
-    corrente: 80,
+    corrente: 250,
     criado_em: "2026-08-28T11:58:00.000Z",
   };
 
@@ -220,7 +230,8 @@ describe("formatarTempoSemSinal", () => {
 describe("corRotuloStatus", () => {
   it("usa uma cor por rótulo", () => {
     expect(corRotuloStatus("Normal")).toBe("#4CAF50");
-    expect(corRotuloStatus("Alerta")).toBe("#F44336");
+    expect(corRotuloStatus("Alerta")).toBe("#F9A825");
+    expect(corRotuloStatus("Crítico")).toBe("#F44336");
     expect(corRotuloStatus("Offline")).toBe("#FF9800");
     expect(corRotuloStatus("Sem dados")).toBe("#9E9E9E");
   });

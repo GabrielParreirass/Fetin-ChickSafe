@@ -78,7 +78,12 @@ Deno.serve(async (req) => {
     return json(400, { error: "Payload sem notificacao" });
   }
 
-  if (texto(record.tipo) !== "alerta_galpao") {
+  const tipo = texto(record.tipo);
+  if (
+    tipo !== "alerta_galpao" &&
+    tipo !== "retorno_normal" &&
+    tipo !== "sensor_offline"
+  ) {
     return json(200, { ok: true, skipped: "tipo" });
   }
 
@@ -97,18 +102,19 @@ Deno.serve(async (req) => {
   }
 
   const supabase = createClient(url, serviceKey);
-  const { data: usuario, error } = await supabase
-    .from("usuarios")
-    .select("push_token")
-    .eq("id", usuarioId)
-    .maybeSingle();
+  const { data: linhas, error } = await supabase
+    .from("push_tokens")
+    .select("token")
+    .eq("usuario_id", usuarioId);
 
   if (error) {
     return json(500, { error: "Falha ao buscar token" });
   }
 
-  const token = texto(usuario?.push_token);
-  if (!token) {
+  const tokens = (linhas ?? [])
+    .map((linha) => texto(linha.token))
+    .filter((token) => token.length > 0);
+  if (tokens.length === 0) {
     return json(200, { ok: true, skipped: "sem_token" });
   }
 
@@ -123,7 +129,7 @@ Deno.serve(async (req) => {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      to: token,
+      to: tokens,
       sound: "default",
       title: titulo,
       body: mensagem,

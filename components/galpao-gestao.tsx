@@ -44,7 +44,6 @@ export function useGalpaoGestao(opcoes: {
   const [carregandoAcesso, setCarregandoAcesso] = useState(false);
   const [nomeEdicao, setNomeEdicao] = useState("");
   const [tensaoEdicao, setTensaoEdicao] = useState("");
-  const [correnteEdicao, setCorrenteEdicao] = useState("");
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -61,7 +60,6 @@ export function useGalpaoGestao(opcoes: {
     setAcessos([]);
     setNomeEdicao("");
     setTensaoEdicao("");
-    setCorrenteEdicao("");
     setErro("");
     setAviso("");
     setConfirmandoApagar(false);
@@ -95,7 +93,6 @@ export function useGalpaoGestao(opcoes: {
     setGalpao(alvo);
     setNomeEdicao(alvo.nome);
     setTensaoEdicao(String(alvo.limiarTensao));
-    setCorrenteEdicao(String(alvo.limiarCorrente));
     setErro("");
     setAviso("");
     setConfirmandoApagar(false);
@@ -114,7 +111,7 @@ export function useGalpaoGestao(opcoes: {
         return;
       }
       const limiarTensao = parseLimiar(tensaoEdicao, "tensão");
-      const limiarCorrente = parseLimiar(correnteEdicao, "corrente");
+      const limiarCorrente = galpao.limiarCorrente;
       setSalvando(true);
       const atualizado = await atualizarGalpao({
         galpaoId: galpao.id,
@@ -379,25 +376,13 @@ export function useGalpaoGestao(opcoes: {
                   ) : (
                     <Text style={styles.campoValor}>{galpao.limiarTensao} V</Text>
                   )}
-                  <Text style={styles.campoLabel}>Limiar de corrente (mA)</Text>
-                  {podeGerenciar ? (
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Ex.: 50"
-                      placeholderTextColor={cores.tintaSuave}
-                      keyboardType="decimal-pad"
-                      value={correnteEdicao}
-                      onChangeText={(valor) => {
-                        setCorrenteEdicao(valor);
-                        setAviso("");
-                        setErro("");
-                      }}
-                    />
-                  ) : (
-                    <Text style={styles.campoValor}>
-                      {galpao.limiarCorrente} mA
-                    </Text>
-                  )}
+                  <Text style={styles.campoLabel}>Corrente do ventilador</Text>
+                  <Text style={styles.campoValor}>Abaixo de 100 mA: crítico</Text>
+                  <Text style={styles.campoValor}>De 100 a 200 mA: alerta</Text>
+                  <Text style={styles.campoValor}>Acima de 200 mA: normal</Text>
+                  <Text style={styles.campoAjuda}>
+                    Essas faixas são fixas e não podem ser alteradas.
+                  </Text>
                 </>
               ) : null}
               {erro && modal === "config" ? (

@@ -123,7 +123,7 @@ Definidas em `lib/status.ts` (padrão; o dono pode mudar por galpão):
 - Tensão ok se **> limiar do galpão** (padrão 3 V)
 - Corrente do ventilador ok se **> limiar do galpão** (padrão 50 mA)
 - Qualquer valor no limiar ou abaixo, ou energia em bateria, vira **Alerta**
-- Sensor **Offline** se a última leitura tem **5 minutos** ou mais (`MINUTOS_SEM_SINAL`)
+- Sensor **Offline** se a última leitura tem **60 minutos** ou mais (`MINUTOS_SEM_SINAL`)
 
 O status **não** é uma coluna em `galpoes`. Ele é calculado na última linha de `leituras`. A notificação de alerta só nasce na **transição** para Alerta (a leitura anterior não estava em alerta). Leituras seguidas já em alerta **não** geram aviso novo.
 
@@ -131,7 +131,7 @@ O status **não** é uma coluna em `galpoes`. Ele é calculado na última linha 
 
 ```
 Telas (app/)
-  → contextos (auth, AuthGate, push, simulador)
+  → contextos (auth, AuthGate, push)
   → lib/ (regras + acesso a dados)
   → Supabase (Postgres + Realtime + Edge Functions)
        → Expo Push Service → FCM → aparelho
@@ -153,12 +153,12 @@ Telas (app/)
 - `supabase/functions/ingest-leitura` — ESP32 autentica com `X-Device-Key` e grava `leituras`
 - `supabase/functions/enviar-push` — lê o token do usuário e POST em `https://exp.host/--/api/v2/push/send`
 
-Leituras reais devem vir de um ESP32 (`ingest-leitura`). Nesta branch há um **simulador no app** (`lib/simulador.ts` + `contexts/simulador.tsx`): o botão **Simular ESP32 (1 min)** publica nos galpões nomeados `Teste1` e `Teste2`; **Testar alerta no galpão** usa o primeiro galpão com acesso aprovado. O simulador é temporário.
+Leituras reais vêm de um ESP32 (`ingest-leitura`). O app não publica leituras de teste.
 
 ## Push: alerta com o app fechado
 
 ```
-ESP / simulador / “Testar alerta”
+ESP32 (`ingest-leitura`)
         ↓
 INSERT em public.leituras
         ↓
@@ -189,7 +189,7 @@ Arquivos envolvidos:
 | `verify_jwt = false` | `supabase/config.toml` (`[functions.enviar-push]`) |
 | Plugin nativo | `app.json` → `expo-notifications` + `android.googleServicesFile` |
 
-O push **não** é calculado de novo no `ingest-leitura`. Quem decide “entrou em alerta” é o trigger SQL, igual para ESP e para o botão de teste.
+O push **não** é calculado de novo no `ingest-leitura`. Quem decide “entrou em alerta” é o trigger SQL.
 
 ## Estrutura
 
@@ -197,11 +197,11 @@ O push **não** é calculado de novo no `ingest-leitura`. Quem decide “entrou 
 app/
   index.tsx                 # boas-vindas
   (auth)/login|cadastro     # autenticação
-  (private)/home            # galpões + testar alerta
+  (private)/home            # galpões
   (private)/perfil          # editar conta + token push
   (private)/galpao/[id]     # detalhe + realtime
   (private)/historico       # mudanças
-contexts/                   # AuthProvider, AuthGate, PushProvider, simulador
+contexts/                   # AuthProvider, AuthGate, PushProvider
 lib/                        # dados, status, histórico, push
 supabase/
   migrations/               # schema versionado
@@ -492,7 +492,6 @@ O arquivo `reports/relatorio-testes.html` na sua máquina só está completo se 
 
 ## Próximos passos (já mapeados)
 
-- Remover o simulador de ESP32 do app
 - Ligar o MQTT/ESP32 de verdade (sem senha versionada no git)
 - Guardar mais de um `push_token` por usuário (vários aparelhos ao mesmo tempo)
 - Abrir o galpão ao tocar na notificação (`data.galpaoId`)

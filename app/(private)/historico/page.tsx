@@ -14,10 +14,7 @@ import {
   rotuloMesAno,
 } from "@/lib/calendario";
 import { htmlHistorico, nomeArquivoHtmlHistorico } from "@/lib/exportar";
-import {
-  filtrarMudancas,
-  type FiltroCampoMudanca,
-} from "@/lib/historico";
+import { filtrarMudancas } from "@/lib/historico";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
@@ -33,13 +30,6 @@ import {
   View,
 } from "react-native";
 
-const FILTROS_CAMPO: { id: FiltroCampoMudanca; rotulo: string }[] = [
-  { id: "todos", rotulo: "Todos" },
-  { id: "energia", rotulo: "Energia" },
-  { id: "tensao", rotulo: "Tensão da bateria" },
-  { id: "corrente", rotulo: "Corrente do ventilador" },
-];
-
 type AlvoCalendario = "inicio" | "fim";
 
 export default function HistoricoScreen() {
@@ -47,7 +37,6 @@ export default function HistoricoScreen() {
   const { user } = useAuth();
   const galpaoSelecionado = typeof galpaoId === "string" ? galpaoId : undefined;
   const { itens, carregando } = useHistorico(user?.id, galpaoSelecionado);
-  const [campo, setCampo] = useState<FiltroCampoMudanca>("todos");
   const [dataInicio, setDataInicio] = useState<Date | null>(null);
   const [dataFim, setDataFim] = useState<Date | null>(null);
   const [alvoCalendario, setAlvoCalendario] = useState<AlvoCalendario | null>(
@@ -59,11 +48,10 @@ export default function HistoricoScreen() {
   const filtrados = useMemo(
     () =>
       filtrarMudancas(itens, {
-        campo,
         dataInicio,
         dataFim,
       }),
-    [itens, campo, dataInicio, dataFim]
+    [itens, dataInicio, dataFim]
   );
 
   const abrirCalendario = (alvo: AlvoCalendario) => {
@@ -149,30 +137,6 @@ export default function HistoricoScreen() {
       </View>
 
       <View style={styles.body}>
-        <View style={styles.filtrosCampo}>
-          {FILTROS_CAMPO.map((filtro) => (
-            <TouchableOpacity
-              key={filtro.id}
-              style={[
-                styles.chip,
-                campo === filtro.id && styles.chipAtivo,
-              ]}
-              onPress={() => setCampo(filtro.id)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: campo === filtro.id }}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  campo === filtro.id && styles.chipTextAtivo,
-                ]}
-              >
-                {filtro.rotulo}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
         <View style={styles.filtrosData}>
           <TouchableOpacity
             style={styles.botaoData}
@@ -202,8 +166,8 @@ export default function HistoricoScreen() {
           <ActivityIndicator color={cores.tinta} style={styles.loader} />
         ) : itens.length === 0 ? (
           <Text style={styles.emptyText}>
-            Nenhuma mudança registrada ainda. Ligue o simulador ou aguarde o
-            ESP32 publicar leituras diferentes.
+            Nenhuma mudança registrada ainda. Aguarde o ESP32 publicar
+            leituras diferentes.
           </Text>
         ) : filtrados.length === 0 ? (
           <Text style={styles.emptyText}>
@@ -214,15 +178,22 @@ export default function HistoricoScreen() {
             data={filtrados}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <View style={styles.item}>
-                <Text style={styles.itemCampo}>{item.campo}</Text>
+              <View
+                style={[
+                  styles.item,
+                  item.entrouEmAlerta && styles.itemAlerta,
+                  item.voltouAoNormal && styles.itemNormal,
+                ]}
+              >
                 {item.galpaoNome ? (
                   <Text style={styles.itemGalpao}>{item.galpaoNome}</Text>
                 ) : null}
-                <Text style={styles.itemLinha}>
-                  Anterior: {item.estadoAnterior}
-                </Text>
-                <Text style={styles.itemLinha}>Novo: {item.novoEstado}</Text>
+                {item.campos.map((parte) => (
+                  <Text key={parte.campo} style={styles.itemLinha}>
+                    <Text style={styles.itemCampo}>{parte.campo}: </Text>
+                    {parte.anterior} → {parte.novo}
+                  </Text>
+                ))}
                 <Text style={styles.itemData}>
                   {formatarDataHora(item.dataHora)}
                 </Text>
@@ -344,30 +315,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 30,
     padding: 20,
   },
-  filtrosCampo: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 12,
-  },
-  chip: {
-    borderWidth: 1,
-    borderColor: cores.tinta,
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  chipAtivo: {
-    backgroundColor: cores.tinta,
-  },
-  chipText: {
-    color: cores.tinta,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  chipTextAtivo: {
-    color: cores.fundo,
-  },
   filtrosData: {
     flexDirection: "row",
     gap: 8,
@@ -398,6 +345,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 24,
     lineHeight: 24,
+  },
+  itemAlerta: {
+    backgroundColor: cores.fundoAlerta,
+  },
+  itemNormal: {
+    backgroundColor: cores.fundoNormal,
   },
   item: {
     backgroundColor: cores.superficieSuave,

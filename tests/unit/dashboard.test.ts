@@ -12,7 +12,7 @@ const fonte: Leitura = {
   galpao_id: "galpao-1",
   energia: "Fonte",
   tensao: 4.2,
-  corrente: 80,
+  corrente: 250,
   criado_em: "2026-01-01T10:05:00.000Z",
 };
 
@@ -66,9 +66,9 @@ describe("resumoDashboard", () => {
       mediaTensao: 3.35,
       minTensao: 2.5,
       maxTensao: 4.2,
-      mediaCorrente: 50,
+      mediaCorrente: 135,
       minCorrente: 20,
-      maxCorrente: 80,
+      maxCorrente: 250,
       leiturasFonte: 1,
       leiturasBateria: 1,
       percentualBateria: 50,

@@ -122,11 +122,33 @@ export async function salvarPushToken(
   userId: string,
   token: string | null
 ): Promise<void> {
-  const pushToken = token?.trim() || null;
+  const pushToken = token?.trim() || "";
+  if (!pushToken) {
+    return;
+  }
+  const { error } = await supabase.from("push_tokens").upsert(
+    {
+      usuario_id: userId,
+      token: pushToken,
+      atualizado_em: new Date().toISOString(),
+    },
+    { onConflict: "token" }
+  );
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function removerPushToken(token: string | null): Promise<void> {
+  const pushToken = token?.trim() || "";
+  if (!pushToken) {
+    return;
+  }
   const { error } = await supabase
-    .from("usuarios")
-    .update({ push_token: pushToken })
-    .eq("id", userId);
+    .from("push_tokens")
+    .delete()
+    .eq("token", pushToken);
 
   if (error) {
     throw error;

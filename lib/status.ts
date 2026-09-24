@@ -2,6 +2,42 @@ import { cores } from "@/constants/tema";
 
 export const LIMIAR_TENSAO_V = 3;
 export const LIMIAR_CORRENTE_MA = 50;
+export const CORRENTE_CRITICA_MA = 100;
+export const CORRENTE_ALERTA_MAX_MA = 200;
+
+export type FaixaCorrente = "normal" | "alerta" | "critico";
+
+export function faixaCorrente(correnteMa: number): FaixaCorrente {
+  if (correnteMa < CORRENTE_CRITICA_MA) {
+    return "critico";
+  }
+  if (correnteMa <= CORRENTE_ALERTA_MAX_MA) {
+    return "alerta";
+  }
+  return "normal";
+}
+
+export function rotuloFaixaCorrente(
+  faixa: FaixaCorrente
+): "Normal" | "Alerta" | "Crítico" {
+  if (faixa === "critico") {
+    return "Crítico";
+  }
+  if (faixa === "alerta") {
+    return "Alerta";
+  }
+  return "Normal";
+}
+
+export function corFaixaCorrente(faixa: FaixaCorrente): string {
+  if (faixa === "critico") {
+    return cores.critico;
+  }
+  if (faixa === "alerta") {
+    return cores.alerta;
+  }
+  return cores.normal;
+}
 
 export function energiaEhFonte(energia: string): boolean {
   return energia === "Fonte" || energia === "USB";
@@ -18,11 +54,8 @@ export function tensaoOk(
   return tensaoV > limiar;
 }
 
-export function correnteOk(
-  correnteMa: number,
-  limiar: number = LIMIAR_CORRENTE_MA
-): boolean {
-  return correnteMa > limiar;
+export function correnteOk(correnteMa: number): boolean {
+  return faixaCorrente(correnteMa) === "normal";
 }
 
 export function rotuloSituacao(ok: boolean): string {
@@ -39,7 +72,12 @@ export function formatarCorrente(correnteMa: number): string {
 
 export const MINUTOS_SEM_SINAL = 60;
 
-export type RotuloStatus = "Normal" | "Alerta" | "Sem dados" | "Offline";
+export type RotuloStatus =
+  | "Normal"
+  | "Alerta"
+  | "Crítico"
+  | "Sem dados"
+  | "Offline";
 
 export type StatusGeral = {
   ok: boolean;
@@ -94,6 +132,9 @@ export function corRotuloStatus(rotulo: RotuloStatus): string {
   if (rotulo === "Alerta") {
     return cores.alerta;
   }
+  if (rotulo === "Crítico") {
+    return cores.critico;
+  }
   if (rotulo === "Offline") {
     return cores.offline;
   }
@@ -107,18 +148,24 @@ export function statusGeralLeitura(
     corrente: number | string;
   } | null,
   limiarTensao: number = LIMIAR_TENSAO_V,
-  limiarCorrente: number = LIMIAR_CORRENTE_MA
+  _limiarCorrente: number = LIMIAR_CORRENTE_MA
 ): StatusGeral {
   if (!leitura) {
     return { ok: false, rotulo: "Sem dados" };
   }
 
-  const ok =
-    rotuloEnergia(leitura.energia) === "Fonte" &&
-    tensaoOk(Number(leitura.tensao), limiarTensao) &&
-    correnteOk(Number(leitura.corrente), limiarCorrente);
+  const faixa = faixaCorrente(Number(leitura.corrente));
+  const energiaOuTensaoRuim =
+    rotuloEnergia(leitura.energia) !== "Fonte" ||
+    !tensaoOk(Number(leitura.tensao), limiarTensao);
 
-  return { ok, rotulo: ok ? "Normal" : "Alerta" };
+  if (faixa === "critico") {
+    return { ok: false, rotulo: "Crítico" };
+  }
+  if (faixa === "alerta" || energiaOuTensaoRuim) {
+    return { ok: false, rotulo: "Alerta" };
+  }
+  return { ok: true, rotulo: "Normal" };
 }
 
 export function statusGalpao(
@@ -155,12 +202,45 @@ export function entrouEmAlerta(
   limiarTensao: number = LIMIAR_TENSAO_V,
   limiarCorrente: number = LIMIAR_CORRENTE_MA
 ): boolean {
-  if (statusGeralLeitura(atual, limiarTensao, limiarCorrente).rotulo !== "Alerta") {
+  const rotuloAtual = statusGeralLeitura(
+    atual,
+    limiarTensao,
+    limiarCorrente
+  ).rotulo;
+  if (rotuloAtual !== "Alerta" && rotuloAtual !== "Crítico") {
     return false;
   }
-  return (
-    statusGeralLeitura(anterior, limiarTensao, limiarCorrente).rotulo !== "Alerta"
-  );
+  const rotuloAnterior = statusGeralLeitura(
+    anterior,
+    limiarTensao,
+    limiarCorrente
+  ).rotulo;
+  return rotuloAnterior !== "Alerta" && rotuloAnterior !== "Crítico";
+}
+
+export function voltouAoNormal(
+  atual: {
+    energia: string;
+    tensao: number | string;
+    corrente: number | string;
+  } | null,
+  anterior: {
+    energia: string;
+    tensao: number | string;
+    corrente: number | string;
+  } | null,
+  limiarTensao: number = LIMIAR_TENSAO_V,
+  limiarCorrente: number = LIMIAR_CORRENTE_MA
+): boolean {
+  if (statusGeralLeitura(atual, limiarTensao, limiarCorrente).rotulo !== "Normal") {
+    return false;
+  }
+  const rotuloAnterior = statusGeralLeitura(
+    anterior,
+    limiarTensao,
+    limiarCorrente
+  ).rotulo;
+  return rotuloAnterior === "Alerta" || rotuloAnterior === "Crítico";
 }
 
 export function resumoLeitura(leitura: {

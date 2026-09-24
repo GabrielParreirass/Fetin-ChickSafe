@@ -282,18 +282,21 @@ describe("salvarPushToken", () => {
     await expect(
       salvarPushToken("user-1", "  ExponentPushToken[abc]  ")
     ).resolves.toBeUndefined();
-    expect(supabaseMocks().from).toHaveBeenCalledWith("usuarios");
-    expect(consulta.update).toHaveBeenCalledWith({
-      push_token: "ExponentPushToken[abc]",
-    });
-    expect(consulta.eq).toHaveBeenCalledWith("id", "user-1");
+    expect(supabaseMocks().from).toHaveBeenCalledWith("push_tokens");
+    expect(consulta.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        usuario_id: "user-1",
+        token: "ExponentPushToken[abc]",
+      }),
+      { onConflict: "token" }
+    );
   });
 
-  it("limpa o token quando vem vazio", async () => {
+  it("ignora token vazio", async () => {
     const consulta = createMockQuery({ data: null, error: null });
     supabaseMocks().from.mockReturnValue(consulta);
 
     await expect(salvarPushToken("user-1", "  ")).resolves.toBeUndefined();
-    expect(consulta.update).toHaveBeenCalledWith({ push_token: null });
+    expect(consulta.upsert).not.toHaveBeenCalled();
   });
 });

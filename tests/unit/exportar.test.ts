@@ -13,13 +13,27 @@ import type { Leitura } from "@/lib/types";
 import { resumoDashboard } from "@/lib/dashboard";
 
 const mudanca: MudancaLeitura = {
-  id: "1-Energia",
+  id: "2",
   galpaoId: "galpao-1",
   galpaoNome: "Galpão Norte",
-  campo: "Energia",
-  estadoAnterior: "Fonte",
-  novoEstado: "Bateria",
   dataHora: new Date("2026-08-28T12:00:00.000Z"),
+  entrouEmAlerta: true,
+  voltouAoNormal: false,
+  campos: [
+    { campo: "Energia", anterior: "Fonte", novo: "Bateria", mudou: true },
+    {
+      campo: "Tensão da Bateria",
+      anterior: "Normal (4.2 V)",
+      novo: "Normal (4.2 V)",
+      mudou: false,
+    },
+    {
+      campo: "Corrente do ventilador",
+      anterior: "Normal (250 mA)",
+      novo: "Normal (250 mA)",
+      mudou: false,
+    },
+  ],
 };
 
 const fonte: Leitura = {
@@ -27,7 +41,7 @@ const fonte: Leitura = {
   galpao_id: "galpao-1",
   energia: "Fonte",
   tensao: 4.2,
-  corrente: 80,
+  corrente: 250,
   criado_em: "2026-08-28T12:00:00.000Z",
 };
 
@@ -36,7 +50,7 @@ const bateria: Leitura = {
   galpao_id: "galpao-1",
   energia: "Bateria",
   tensao: 2.5,
-  corrente: 20,
+  corrente: 150,
   criado_em: "2026-08-28T11:00:00.000Z",
 };
 
